@@ -18,8 +18,8 @@ const fontSerif = Newsreader({
 })
 
 export const metadata: Metadata = {
-  title: "Bezoekje — samen bezoek plannen",
-  description: "Plan samen bezoek, zodat niemand er alleen voor staat.",
+  title: "Bezoekje — plan even snel een bezoekje",
+  description: "Eén link in de groepsapp. Kies een vrij moment, zet je naam erbij, klaar.",
   robots: { index: false, follow: false },
 }
 
