@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, Newsreader } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -12,8 +12,13 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+const fontSerif = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-serif",
+})
+
 export const metadata: Metadata = {
-  title: "Bezoekplanner",
+  title: "Bezoekje — samen bezoek plannen",
   description: "Plan samen bezoek, zodat niemand er alleen voor staat.",
   robots: { index: false, follow: false },
 }
@@ -37,7 +42,7 @@ export default function RootLayout({
     <html
       lang="nl"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
+      className={cn("antialiased", fontMono.variable, fontSerif.variable, "font-sans", geist.variable)}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
