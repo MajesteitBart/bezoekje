@@ -129,6 +129,13 @@
     }
 }
 
+/* Fraunces: soft terminals + wonky letterforms for a playful display feel */
+.font-serif {
+    font-variation-settings:
+        "SOFT" 80,
+        "WONK" 1;
+}
+
 /* Scroll-entry reveal for the landing page (see components/landing/reveal.tsx) */
 .reveal {
     opacity: 0;

@@ -1,4 +1,5 @@
 import { createRosterAction } from "@/app/actions";
+import { GithubIcon } from "@/components/github-icon";
 import { Reveal } from "@/components/landing/reveal";
 
 const flowSteps = [
@@ -7,8 +8,9 @@ const flowSteps = [
     number: "01",
     title: "Delen",
     label: "Voor iedereen",
-    labelClass: "bg-[#DEF0FB] text-[#2277B0]",
-    iconClass: "bg-[#DEF0FB] text-[#2277B0]",
+    labelClass: "bg-white/70 text-[#2277B0]",
+    iconClass: "bg-white text-[#2277B0]",
+    cardClass: "border-[#C9E4F6] bg-[#E7F4FC] -rotate-1",
     copy: "Zet de bezoekerslink in de groepsapp. Iedereen kan meekijken en een moment kiezen.",
     url: "bezoekje.app/r/x7Kq9mP2",
   },
@@ -17,8 +19,9 @@ const flowSteps = [
     number: "02",
     title: "Plannen",
     label: "Voor jezelf",
-    labelClass: "bg-[#E4F2E2] text-[#3B8547]",
-    iconClass: "bg-[#E4F2E2] text-[#3B8547]",
+    labelClass: "bg-white/70 text-[#3B8547]",
+    iconClass: "bg-white text-[#3B8547]",
+    cardClass: "border-[#CBE5C9] bg-[#EAF6E8] rotate-1 md:translate-y-3",
     copy: "Wie langskomt krijgt een eigen link om het bezoekje te verzetten of te annuleren.",
     url: "bezoekje.app/r/…/v/38/aJ3n",
   },
@@ -27,8 +30,9 @@ const flowSteps = [
     number: "03",
     title: "Beheren",
     label: "Voor familie",
-    labelClass: "bg-[#FCEEC5] text-[#A87400]",
-    iconClass: "bg-[#FCEEC5] text-[#A87400]",
+    labelClass: "bg-white/70 text-[#A87400]",
+    iconClass: "bg-white text-[#A87400]",
+    cardClass: "border-[#F0DFA8] bg-[#FCF3D4] -rotate-1",
     copy: "Met de beheerlink pin je een notitie, zet je rustmomenten vast en pas je elk bezoek aan.",
     url: "bezoekje.app/r/…/admin/rW8s",
   },
@@ -73,8 +77,7 @@ const mutedIndexes = new Set([0, 1, 33, 34]);
 
 export default function HomePage() {
   return (
-    <main className="min-h-svh bg-[#FBF6EF] text-[#4A443D]">
-      <NavBar />
+    <main className="flex-1 bg-[#FBF6EF] text-[#4A443D]">
       <HeroSection />
       <LinkFlowSection />
       <ProductSection />
@@ -88,30 +91,10 @@ export default function HomePage() {
 function Wordmark({ large = false }: { large?: boolean }) {
   return (
     <span
-      className={`font-serif tracking-[-0.01em] text-[#221D18] ${large ? "text-3xl" : "text-2xl"}`}
+      className={`font-serif font-semibold tracking-[-0.01em] text-[#221D18] ${large ? "text-3xl" : "text-2xl"}`}
     >
       Bezoekje<span className="text-[#E4593B]">.</span>
     </span>
-  );
-}
-
-function NavBar() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-[#EFE6DA] bg-[#FBF6EF]/85 backdrop-blur">
-      <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-        <a href="#top">
-          <Wordmark />
-        </a>
-        <div className="flex items-center gap-6 font-mono text-xs uppercase tracking-[0.08em] text-[#8A8177]">
-          <a href="#product" className="hidden transition-colors hover:text-[#E4593B] sm:block">
-            Voorbeeld
-          </a>
-          <a href="#details" className="transition-colors hover:text-[#E4593B]">
-            Hoe het werkt
-          </a>
-        </div>
-      </nav>
-    </header>
   );
 }
 
@@ -122,17 +105,46 @@ function HeroSection() {
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(640px_circle_at_15%_5%,rgba(242,201,76,0.20),transparent_65%),radial-gradient(560px_circle_at_88%_22%,rgba(228,89,59,0.12),transparent_65%),radial-gradient(500px_circle_at_50%_78%,rgba(59,133,71,0.08),transparent_65%)]"
       />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden md:block"
+      >
+        <span className="absolute left-[13%] top-[26%] size-3 rounded-full bg-[#F2C94C]/80" />
+        <span className="absolute left-[8%] top-[52%] size-2 rounded-full bg-[#3B8547]/50" />
+        <span className="absolute right-[11%] top-[22%] size-2.5 rounded-full bg-[#E4593B]/60" />
+        <span className="absolute right-[7%] top-[48%] size-2 rounded-full bg-[#2277B0]/50" />
+        <span className="absolute left-[22%] top-[14%] size-1.5 rounded-full bg-[#2277B0]/40" />
+        <span className="absolute right-[24%] top-[60%] size-1.5 rounded-full bg-[#F2C94C]/70" />
+      </div>
       <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center px-6 pb-24 pt-20 text-center md:pt-28">
         <Reveal>
           <Eyebrow>Zo geregeld</Eyebrow>
-          <h1 className="mt-6 font-serif text-[44px] leading-[1.05] tracking-[-0.02em] text-[#221D18] md:text-7xl">
+          <h1 className="mt-6 font-serif text-[44px] font-semibold leading-[1.08] tracking-[-0.02em] text-[#221D18] md:text-7xl">
             Plan even snel
             <br />
-            een <span className="text-[#E4593B]">bezoekje</span>.
+            een{" "}
+            <span className="relative inline-block text-[#E4593B]">
+              bezoekje
+              <svg
+                aria-hidden
+                className="absolute -bottom-2 left-0 w-full md:-bottom-3"
+                viewBox="0 0 120 12"
+                preserveAspectRatio="none"
+                fill="none"
+              >
+                <path
+                  d="M3 8.5C18 3.5 30 10 45 6.5S72 3 87 7s22 1.5 30-2.5"
+                  stroke="#F2C94C"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            .
           </h1>
-          <p className="mx-auto mt-7 max-w-xl text-base leading-[1.6] text-[#6B6258] md:text-lg">
+          <p className="mx-auto mt-8 max-w-xl text-base leading-[1.6] text-[#6B6258] md:text-lg">
             Eén link in de groepsapp. Kies een vrij moment, zet je naam erbij,
-            klaar — geen account of wachtwoord nodig.
+            klaar — een account is niet nodig.
           </p>
         </Reveal>
 
@@ -171,12 +183,14 @@ function LinkFlowSection() {
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.4fr] lg:items-center md:py-32">
       <Reveal>
         <Eyebrow>Eén rooster, drie links</Eyebrow>
-        <h2 className="mt-5 max-w-md font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
+        <h2 className="mt-5 max-w-md font-serif text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
           De link is de sleutel
         </h2>
         <p className="mt-6 max-w-md text-base leading-[1.6] text-[#6B6258]">
-          Bezoekje kent geen accounts. Wie een link heeft, kan precies dat ene:
-          meekijken, het eigen bezoekje aanpassen, of het rooster beheren.
+          Registreren hoeft niet: wie een link heeft, kan precies dat ene —
+          meekijken, het eigen bezoekje aanpassen, of het rooster beheren. Wil
+          je je roosters op elk apparaat terugvinden? Koppel ze dan aan een
+          account: alleen je e-mailadres, geen wachtwoord.
         </p>
       </Reveal>
 
@@ -197,7 +211,7 @@ function ProductSection() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 text-center">
         <Reveal>
           <Eyebrow>Het rooster</Eyebrow>
-          <h2 className="mt-5 max-w-3xl font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
+          <h2 className="mt-5 max-w-3xl font-serif text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
             Vrije plekken zie je meteen
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-base leading-[1.6] text-[#6B6258]">
@@ -229,7 +243,7 @@ function DetailsSection() {
     >
       <Reveal>
         <Eyebrow>Voor elk bezoek</Eyebrow>
-        <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
+        <h2 className="mt-5 font-serif text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
           Klein genoeg voor iedereen
         </h2>
         <p className="mt-6 max-w-lg text-base leading-[1.6] text-[#6B6258]">
@@ -335,21 +349,21 @@ function MobileStorySection() {
 
         <Reveal delay={120}>
           <Eyebrow>Mobiel eerst</Eyebrow>
-          <h2 className="mt-5 font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
+          <h2 className="mt-5 font-serif text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
             Van groepsapp naar afspraak
           </h2>
-          <blockquote className="mt-9 border-l-2 border-[#E4593B] pl-6">
+          <div className="mt-9 border-l-2 border-[#E4593B] pl-6">
             <p className="font-serif text-2xl leading-[1.4] text-[#4A443D] md:text-[27px]">
-              &bdquo;Even een linkje in de familie-app en iedereen prikt zelf
-              een momentje. Scheelt zó honderd berichtjes.&rdquo;
+              Even een linkje in de familie-app en iedereen prikt zelf een
+              momentje. Dat scheelt zo honderd berichtjes heen en weer.
             </p>
-            <footer className="mt-6 flex items-center gap-4">
+            <div className="mt-6 flex items-center gap-4">
               <AvatarStack count={4} />
               <p className="font-mono text-xs uppercase tracking-[0.08em] text-[#8A8177]">
-                Familiecoördinator
+                De hele familie plant mee
               </p>
-            </footer>
-          </blockquote>
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
@@ -360,8 +374,8 @@ function FinalCtaSection() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-12 pt-24 text-center md:pt-32">
       <Reveal>
-        <Eyebrow>Eén link, geen account</Eyebrow>
-        <h2 className="mt-5 max-w-2xl font-serif text-4xl leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
+        <Eyebrow>Eén link is genoeg</Eyebrow>
+        <h2 className="mt-5 max-w-2xl font-serif text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-[#221D18] md:text-5xl">
           Begin met een naam
         </h2>
         <p className="mx-auto mt-6 max-w-xl text-base leading-[1.6] text-[#6B6258]">
@@ -381,12 +395,21 @@ function FinalCtaSection() {
             Even snel een bezoekje plannen
           </p>
         </a>
-        <div className="flex flex-wrap gap-6 font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
+        <div className="flex flex-wrap items-center gap-6 font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
           <a href="#details" className="transition-colors hover:text-[#E4593B]">
             Hoe het werkt
           </a>
           <a href="#product" className="transition-colors hover:text-[#E4593B]">
             Voorbeeld
+          </a>
+          <a
+            href="https://github.com/MajesteitBart/bezoekje"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-[#E4593B]"
+          >
+            <GithubIcon className="size-3.5" />
+            Open source op GitHub
           </a>
           <span>Privé — niet geïndexeerd</span>
         </div>
@@ -607,19 +630,23 @@ function FlowCard({ step }: { step: (typeof flowSteps)[number] }) {
   const Icon = step.icon;
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-[#EFE6DA] bg-white p-7 transition-shadow duration-200 hover:shadow-[0_2px_8px_rgba(90,62,40,0.06)]">
+    <article
+      className={`flex h-full flex-col rounded-2xl border p-7 transition-transform duration-300 hover:rotate-0 hover:scale-[1.02] ${step.cardClass}`}
+    >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-[#B5AB9E]">{step.number}</span>
+        <span className="font-mono text-xs text-[#8A8177]">{step.number}</span>
         <Tag className={step.labelClass}>{step.label}</Tag>
       </div>
       <span
-        className={`mt-7 flex size-10 items-center justify-center rounded-md ${step.iconClass}`}
+        className={`mt-7 flex size-10 items-center justify-center rounded-lg ${step.iconClass}`}
       >
         <Icon className="size-5" />
       </span>
-      <h3 className="mt-4 font-serif text-2xl tracking-[-0.01em] text-[#221D18]">{step.title}</h3>
-      <p className="mt-3 flex-1 text-sm leading-[1.6] text-[#6B6258]">{step.copy}</p>
-      <div className="mt-6 rounded-md border border-[#EFE6DA] bg-[#FBF6EF] px-3 py-2.5">
+      <h3 className="mt-4 font-serif text-2xl font-semibold tracking-[-0.01em] text-[#221D18]">
+        {step.title}
+      </h3>
+      <p className="mt-3 flex-1 text-sm leading-[1.6] text-[#5C554C]">{step.copy}</p>
+      <div className="mt-6 rounded-md bg-white/80 px-3 py-2.5">
         <p className="truncate font-mono text-xs text-[#8A8177]">{step.url}</p>
       </div>
     </article>

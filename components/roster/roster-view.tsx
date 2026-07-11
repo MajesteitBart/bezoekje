@@ -1,6 +1,11 @@
 "use client";
 
-import { ClockIcon, MessageCircleIcon, PinIcon } from "lucide-react";
+import {
+  ClockIcon,
+  MessageCircleIcon,
+  PinIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { nl } from "react-day-picker/locale";
 
@@ -17,7 +22,12 @@ import {
   isoToLocalDate,
   todayISO,
 } from "@/lib/dates";
-import type { BlockedDTO, RosterDTO, VisitDTO } from "@/lib/types";
+import type {
+  AccountInfoDTO,
+  BlockedDTO,
+  RosterDTO,
+  VisitDTO,
+} from "@/lib/types";
 
 export function RosterView({
   roster,
@@ -25,12 +35,14 @@ export function RosterView({
   blocked,
   adminToken,
   justCreated,
+  account,
 }: {
   roster: RosterDTO;
   visits: VisitDTO[];
   blocked: BlockedDTO[];
   adminToken: string | null;
   justCreated?: boolean;
+  account?: AccountInfoDTO;
 }) {
   const todayIso = todayISO();
   const horizonIso = addDaysISO(todayIso, roster.daysAhead);
@@ -70,6 +82,7 @@ export function RosterView({
           roster={roster}
           adminToken={adminToken}
           justCreated={justCreated}
+          account={account}
         />
       ) : null}
 
@@ -158,9 +171,27 @@ function InfoPanel({
       <h1 className="text-lg font-semibold">{roster.title}</h1>
 
       {roster.pinnedNote ? (
-        <Alert>
-          <PinIcon />
-          <AlertTitle>Even opletten</AlertTitle>
+        <Alert
+          variant={
+            roster.pinnedNoteLevel === "urgent"
+              ? "danger"
+              : roster.pinnedNoteLevel === "warning"
+                ? "warning"
+                : "default"
+          }
+        >
+          {roster.pinnedNoteLevel === "urgent" ? (
+            <TriangleAlertIcon />
+          ) : (
+            <PinIcon />
+          )}
+          <AlertTitle>
+            {roster.pinnedNoteLevel === "urgent"
+              ? "Belangrijk"
+              : roster.pinnedNoteLevel === "warning"
+                ? "Even opletten"
+                : "Goed om te weten"}
+          </AlertTitle>
           <AlertDescription>{roster.pinnedNote}</AlertDescription>
         </Alert>
       ) : null}

@@ -42,10 +42,11 @@ CREATE TABLE IF NOT EXISTS rosters (
   admin_token TEXT NOT NULL,
   title TEXT NOT NULL,
   pinned_note TEXT,
+  pinned_note_level TEXT NOT NULL DEFAULT 'warning',
   start_min INTEGER NOT NULL DEFAULT 600,
   end_min INTEGER NOT NULL DEFAULT 1200,
   slot_minutes INTEGER NOT NULL DEFAULT 60,
-  max_concurrent INTEGER NOT NULL DEFAULT 2,
+  max_concurrent INTEGER NOT NULL DEFAULT 1,
   days_ahead INTEGER NOT NULL DEFAULT 21,
   created_at INTEGER NOT NULL
 );
@@ -72,9 +73,78 @@ CREATE TABLE IF NOT EXISTS blocked_times (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_blocked_roster_date ON blocked_times(roster_id, date);
+CREATE TABLE IF NOT EXISTS user (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  image TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS session (
+  id TEXT PRIMARY KEY,
+  expires_at INTEGER NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS account (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  access_token TEXT,
+  refresh_token TEXT,
+  id_token TEXT,
+  access_token_expires_at INTEGER,
+  refresh_token_expires_at INTEGER,
+  scope TEXT,
+  password TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS verification (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS roster_admins (
+  roster_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (roster_id, user_id)
+);
 `;
 
+// Columns added after the first release; CREATE TABLE IF NOT EXISTS does not
+// evolve existing tables, so each is applied when missing.
+const COLUMN_MIGRATIONS: Array<{ table: string; column: string; ddl: string }> =
+  [
+    {
+      table: "rosters",
+      column: "pinned_note_level",
+      ddl: "ALTER TABLE rosters ADD COLUMN pinned_note_level TEXT NOT NULL DEFAULT 'warning'",
+    },
+  ];
+
+async function migrate(): Promise<void> {
+  const client = getClient();
+  await client.executeMultiple(DDL);
+  for (const m of COLUMN_MIGRATIONS) {
+    const info = await client.execute(`PRAGMA table_info(${m.table})`);
+    const exists = info.rows.some((r) => r.name === m.column);
+    if (!exists) await client.execute(m.ddl);
+  }
+}
+
 export function dbReady(): Promise<void> {
-  g.__visitsDbReady ??= getClient().executeMultiple(DDL);
+  g.__visitsDbReady ??= migrate();
   return g.__visitsDbReady;
 }

@@ -1,8 +1,11 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { RosterView } from "@/components/roster/roster-view";
+import { auth } from "@/lib/auth";
 import {
   getBlockedInRange,
+  getRosterAdminEmails,
   getRosterByPublicToken,
   getVisitsInRange,
   toRosterDTO,
@@ -25,10 +28,17 @@ export default async function RosterAdminPage({
   const { welkom } = await searchParams;
   const from = todayISO();
   const to = addDaysISO(from, roster.daysAhead);
-  const [visits, blocked] = await Promise.all([
+  const [visits, blocked, session, linkedEmails] = await Promise.all([
     getVisitsInRange(roster.id, from, to),
     getBlockedInRange(roster.id, from, to),
+    auth.api.getSession({ headers: await headers() }),
+    getRosterAdminEmails(roster.id),
   ]);
+  const account = {
+    sessionEmail: session?.user.email ?? null,
+    linkedEmails,
+    sessionLinked: session ? linkedEmails.includes(session.user.email) : false,
+  };
 
   return (
     <RosterView
@@ -37,6 +47,7 @@ export default async function RosterAdminPage({
       blocked={blocked}
       adminToken={adminToken}
       justCreated={welkom === "1"}
+      account={account}
     />
   );
 }

@@ -1,8 +1,19 @@
 import { and, eq, gte, lte } from "drizzle-orm";
 
 import { db, dbReady } from "@/lib/db";
-import { blockedTimes, rosters, visits } from "@/lib/db/schema";
-import type { BlockedDTO, RosterDTO, VisitDTO } from "@/lib/types";
+import { user } from "@/lib/db/auth-schema";
+import { blockedTimes, rosterAdmins, rosters, visits } from "@/lib/db/schema";
+import {
+  NOTE_LEVELS,
+  type BlockedDTO,
+  type NoteLevel,
+  type RosterDTO,
+  type VisitDTO,
+} from "@/lib/types";
+
+function isNoteLevel(value: string): value is NoteLevel {
+  return (NOTE_LEVELS as readonly string[]).includes(value);
+}
 
 export type RosterRow = typeof rosters.$inferSelect;
 
@@ -23,12 +34,46 @@ export function toRosterDTO(roster: RosterRow): RosterDTO {
     publicToken: roster.publicToken,
     title: roster.title,
     pinnedNote: roster.pinnedNote,
+    pinnedNoteLevel: isNoteLevel(roster.pinnedNoteLevel)
+      ? roster.pinnedNoteLevel
+      : "warning",
     startMin: roster.startMin,
     endMin: roster.endMin,
     slotMinutes: roster.slotMinutes,
     maxConcurrent: roster.maxConcurrent,
     daysAhead: roster.daysAhead,
   };
+}
+
+export async function linkRosterToUser(
+  rosterId: string,
+  userId: string
+): Promise<void> {
+  await dbReady();
+  await db
+    .insert(rosterAdmins)
+    .values({ rosterId, userId, createdAt: Date.now() })
+    .onConflictDoNothing();
+}
+
+export async function getRostersForUser(userId: string): Promise<RosterRow[]> {
+  await dbReady();
+  const rows = await db
+    .select({ roster: rosters })
+    .from(rosterAdmins)
+    .innerJoin(rosters, eq(rosterAdmins.rosterId, rosters.id))
+    .where(eq(rosterAdmins.userId, userId));
+  return rows.map((r) => r.roster);
+}
+
+export async function getRosterAdminEmails(rosterId: string): Promise<string[]> {
+  await dbReady();
+  const rows = await db
+    .select({ email: user.email })
+    .from(rosterAdmins)
+    .innerJoin(user, eq(rosterAdmins.userId, user.id))
+    .where(eq(rosterAdmins.rosterId, rosterId));
+  return rows.map((r) => r.email);
 }
 
 export async function getVisitsInRange(

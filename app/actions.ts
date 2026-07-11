@@ -15,6 +15,7 @@ import { db, dbReady } from "@/lib/db";
 import { blockedTimes, rosters, visits } from "@/lib/db/schema";
 import { capacityLeft, overlaps } from "@/lib/slots";
 import { newId, newToken } from "@/lib/tokens";
+import { NOTE_LEVELS, type NoteLevel } from "@/lib/types";
 
 type Err = { ok: false; error: string };
 type Ok<T = object> = { ok: true } & T;
@@ -69,6 +70,8 @@ export async function createRosterAction(formData: FormData) {
     publicToken,
     adminToken,
     title,
+    // explicit: tables created before the default changed still carry DEFAULT 2
+    maxConcurrent: 1,
     createdAt: Date.now(),
   });
   redirect(`/r/${publicToken}/admin/${adminToken}?welkom=1`);
@@ -219,6 +222,7 @@ type RosterSettingsInput = {
   adminToken: string;
   title: string;
   pinnedNote?: string | null;
+  pinnedNoteLevel: NoteLevel;
   startMin: number;
   endMin: number;
   maxConcurrent: number;
@@ -234,6 +238,8 @@ export async function updateRosterAction(
   const title = cleanText(input.title, 80);
   if (!title) return err("Vul een titel in.");
   const pinnedNote = cleanText(input.pinnedNote, 500);
+  if (!(NOTE_LEVELS as readonly string[]).includes(input.pinnedNoteLevel))
+    return err("Ongeldige urgentie.");
   if (!isValidTimeRange(input.startMin, input.endMin))
     return err("Ongeldige bezoektijden.");
   if (input.endMin - input.startMin < roster.slotMinutes)
@@ -256,6 +262,7 @@ export async function updateRosterAction(
     .set({
       title,
       pinnedNote,
+      pinnedNoteLevel: input.pinnedNoteLevel,
       startMin: input.startMin,
       endMin: input.endMin,
       maxConcurrent: input.maxConcurrent,

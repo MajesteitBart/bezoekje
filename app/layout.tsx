@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono, Newsreader } from "next/font/google"
+import { Fraunces, Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
+import { NavBar } from "@/components/nav-bar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
@@ -12,15 +13,26 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
-const fontSerif = Newsreader({
+const fontSerif = Fraunces({
   subsets: ["latin"],
   variable: "--font-serif",
+  axes: ["SOFT", "WONK", "opsz"],
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://bezoekje.app"),
   title: "Bezoekje — plan even snel een bezoekje",
   description: "Eén link in de groepsapp. Kies een vrij moment, zet je naam erbij, klaar.",
   robots: { index: false, follow: false },
+  openGraph: {
+    title: "Bezoekje — plan even snel een bezoekje",
+    description:
+      "Maak een bezoekrooster en deel één link in je WhatsApp-groep. Iedereen ziet direct wie er wanneer komt.",
+    url: "https://bezoekje.app",
+    siteName: "Bezoekje",
+    locale: "nl_NL",
+    type: "website",
+  },
 }
 
 export const viewport: Viewport = {
@@ -45,7 +57,12 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, fontSerif.variable, "font-sans", geist.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <div className="flex min-h-svh flex-col">
+            <NavBar />
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   )
