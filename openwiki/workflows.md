@@ -4,10 +4,10 @@
 
 1. The landing-page form submits a title to `createRosterAction` (`app/page.tsx`).
 2. The action trims the title to 80 characters, generates a roster ID plus public/admin capabilities, inserts defaults, and redirects to `/r/{public}/admin/{admin}?welkom=1` (`app/actions.ts`).
-3. The admin route passes `justCreated` to `RosterView`; `AdminBar` presents sharing/onboarding controls.
-4. Share the public URL broadly within the intended group and keep the admin URL private.
+3. The admin route passes `justCreated` to `RosterView`; `AdminBar` presents sharing/onboarding controls and offers optional email-account linking.
+4. Share the public URL broadly within the intended group and keep the admin URL private. If linked, the URL can later be recovered from `/account`; it remains a bearer credential.
 
-The schema defaults are 10:00–20:00, 60-minute slots, two concurrent visits, and 21 days ahead. There is no delete-roster or public-token rotation workflow in the implementation.
+The schema defaults are 10:00–20:00, 60-minute slots, one concurrent visit, and 21 days ahead. There is no delete-roster or public-token rotation workflow in the implementation.
 
 ## View and book a visit
 
@@ -37,7 +37,16 @@ The admin URL renders the normal roster with an `adminToken`. The token is accep
 - remove a blocked range;
 - copy/share visitor and admin URLs.
 
-Each mutation verifies the public/admin token pair server-side and revalidates both route variants.
+Each roster mutation verifies the public/admin token pair server-side and revalidates both route variants. An account session alone does not authorize these mutations.
+
+## Link and recover admin access with an account
+
+1. From a valid admin page, an administrator can request a six-digit email code. Codes expire after 10 minutes and allow three attempts (`lib/auth.ts`).
+2. Successful verification creates a 30-day session and links the roster only when the submitted public/admin token pair still matches. Existing signed-in users can link directly from the admin page.
+3. `/account` lists linked rosters as full admin URLs. A signed-in user can also paste another full admin URL; visitor URLs are rejected with a specific error (`app/account-actions.ts`, `lib/links.ts`).
+4. Multiple users may link to one roster. There is currently no unlink UI.
+
+The account is optional recovery/indexing. It does not rotate, hide, or replace the admin token, and possession of an admin URL still grants full admin access without signing in.
 
 ### Admin consistency caveats
 

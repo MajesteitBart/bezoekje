@@ -16,13 +16,15 @@ An admin-created block marks a dated interval unavailable, usually for rest or t
 
 ## Physical model
 
-`lib/db/schema.ts` defines three SQLite tables; `lib/db/index.ts` contains matching runtime DDL.
+`lib/db/schema.ts` defines the roster-domain tables, `lib/db/auth-schema.ts` defines Better Auth storage, and `lib/db/index.ts` contains matching runtime DDL.
 
 | Table | Important fields |
 | --- | --- |
 | `rosters` | `id`, unique `public_token`, `admin_token`, title/note, `start_min`, `end_min`, `slot_minutes`, `max_concurrent`, `days_ahead`, `created_at` |
 | `visits` | `id`, `roster_id`, date, start/end minutes, name/note, `edit_token`, created/updated timestamps |
 | `blocked_times` | `id`, `roster_id`, date, start/end minutes, label, `created_at` |
+| `roster_admins` | composite key `(roster_id, user_id)`, `created_at`; links a proven admin capability to an account |
+| `user`, `session`, `account`, `verification` | Better Auth identity, 30-day sessions, provider records, and temporary OTP verification state |
 
 Range indexes exist on `(roster_id, date)` for visits and blocks. The database does not declare foreign keys, cascades, booking uniqueness, or check constraints. Application actions therefore carry most integrity responsibility.
 
@@ -77,7 +79,7 @@ aStart < bEnd && bStart < aEnd
 - **Race conditions:** capacity validation and insert/update are not transactional; the schema cannot prevent concurrent overbooking.
 - **Weak relational enforcement:** orphaned visits/blocks and invalid values are possible through direct database writes.
 - **Admin conflicts:** blocks and policy updates can conflict with existing visits.
-- **Schema evolution:** `CREATE TABLE IF NOT EXISTS` creates fresh tables but does not add or transform columns on an existing database. Drizzle Kit is configured, but no generated migration set or migration script exists.
+- **Schema evolution:** bootstrap DDL creates missing tables, and a small `COLUMN_MIGRATIONS` list currently adds the post-release `rosters.pinned_note_level` column when absent. This is not a general migration system and cannot transform arbitrary existing data. Drizzle Kit is configured, but no generated migration set or migration script exists.
 - **Token lifecycle:** capabilities are plaintext and non-expiring. The public token is unique, but admin/edit tokens have no unique index; rotation is not implemented.
 
 For model changes, update both `lib/db/schema.ts` and the runtime/bootstrap strategy. Do not assume editing the Drizzle schema upgrades an existing deployment.

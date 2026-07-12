@@ -2,18 +2,19 @@
 
 ## Design intent
 
-Bezoekje optimizes for a link opened from a family WhatsApp group: minimal data entry, no identity system, and an obvious view of unfilled days. Security is capability-based rather than account-based. The architecture therefore keeps authentication checks close to route loading and mutations, while the browser remembers only per-visit edit capabilities (`SPEC.md`, `README.md`).
+Bezoekje optimizes for a link opened from a family WhatsApp group: minimal data entry and an obvious view of unfilled days. Core authorization remains capability-based. An optional Better Auth email-OTP account acts as a recovery/index layer for admin URLs, not as a replacement authorization path; roster mutations still verify the admin token (`SPEC.md`, `README.md`, `lib/auth.ts`, `app/account-actions.ts`).
 
 ## Runtime layers
 
 ### Routes and server rendering
 
-- `/` renders the roster-creation landing page and posts directly to `createRosterAction` (`app/page.tsx`). The current working tree contains an extensive uncommitted marketing redesign around the same form.
+- `/` renders the polished roster-creation landing page and posts directly to `createRosterAction` (`app/page.tsx`).
 - `/r/[token]` resolves the public capability and loads visits/blocks from today through `daysAhead` (`app/r/[token]/page.tsx`).
 - `/r/[token]/admin/[adminToken]` verifies both capabilities before passing the admin token to the UI (`app/r/[token]/admin/[adminToken]/page.tsx`).
 - `/r/[token]/v/[visitId]/[editToken]` verifies the roster/visit/token tuple, then renders a client bridge that saves the token and redirects to the public roster (`app/r/[token]/v/[visitId]/[editToken]/page.tsx`).
+- `/account` reads the Better Auth session, offers email-OTP sign-in, and lists admin URLs joined through `roster_admins` (`app/account/page.tsx`).
 
-Roster routes are `force-dynamic`; each request sees database state rather than a statically generated page.
+Roster and account routes are `force-dynamic`; each request sees database/session state rather than a statically generated page.
 
 ### Interactive client
 
@@ -23,7 +24,7 @@ The first client render does not read `localStorage`; edit capabilities are load
 
 ### Server Actions and domain enforcement
 
-`app/actions.ts` is the mutation boundary. Client components import actions directly; there are no API routes or auth library. Actions:
+`app/actions.ts` is the roster mutation boundary. Client components import actions directly; there are no application API routes. `app/account-actions.ts` separately wraps Better Auth's server API for OTP/session and roster-link operations. Roster actions:
 
 - normalize and truncate text;
 - validate dates, time ranges, horizon, visiting hours, blocks, and capacity;

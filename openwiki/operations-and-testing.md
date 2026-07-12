@@ -19,20 +19,26 @@ The documented target is Vercel with Turso/libSQL (`README.md`). Configure the e
 
 - `DATABASE_URL`
 - `DATABASE_AUTH_TOKEN` when required by the remote database
+- `BETTER_AUTH_SECRET` for signing auth state
+- `BETTER_AUTH_URL`, or `RAILWAY_PUBLIC_DOMAIN` as its deployment fallback
+- `RESEND_API_KEY` for production OTP delivery
+- optional `EMAIL_FROM` (defaults to Resend's onboarding sender)
 
-Do not put values in source or wiki pages. Production must use HTTPS because URL paths are bearer credentials. `app/layout.tsx` emits `noindex, nofollow`; retain it unless the privacy model intentionally changes.
+Do not put values in source or wiki pages. `.env.example` currently lists only database configuration, so it is incomplete for production account login. Production must use HTTPS because URL paths are bearer credentials. `app/layout.tsx` emits `noindex, nofollow`; retain it unless the privacy model intentionally changes.
 
-The database client opens lazily. This is required because `next build` imports application modules while a runtime database path or mounted volume may not exist. Avoid moving connection creation back to module scope.
+The database client and Better Auth instance initialize lazily. This is required because `next build` imports application modules while runtime database storage and `BETTER_AUTH_SECRET` may be unavailable. Avoid moving either initialization back to module scope.
+
+In development, missing `RESEND_API_KEY` prints the OTP to the server console. Production deliberately throws instead; verify sender/domain configuration and delivery before relying on account recovery.
 
 ## Database runbook
 
 ### Fresh database
 
-The first query calls `dbReady()`, which creates the three tables and range indexes. A process caches the initialization promise on `globalThis`.
+The first query calls `dbReady()`, which creates the roster tables, Better Auth tables, `roster_admins`, and range indexes. A process caches the initialization promise on `globalThis`.
 
 ### Schema changes
 
-Runtime DDL uses `CREATE TABLE IF NOT EXISTS`; it cannot evolve an existing table. Although `drizzle.config.ts` points to a migration output directory, the repository has no migration command or committed migrations.
+Runtime DDL creates missing tables with `CREATE TABLE IF NOT EXISTS`. A narrow bootstrap migration adds `rosters.pinned_note_level` when absent, but there is no general migration runner. Although `drizzle.config.ts` points to a migration output directory, the repository has no migration command or committed migrations.
 
 Before deploying a schema change:
 
@@ -67,6 +73,9 @@ Until automated tests exist, run at least these scenarios for relevant changes:
 ### Access and privacy
 
 - Public, admin, and personal URLs accept valid capabilities and return 404 for mismatched roster/visit/token combinations.
+- Request and verify a six-digit OTP; reject malformed, expired, and over-attempted codes, and verify production send failures surface to the user.
+- Link a roster only after proving its admin URL; reject visitor/invalid links, list linked rosters in `/account`, and confirm signing out removes account access.
+- Confirm an account session without the admin token cannot call roster-admin mutations, while a valid admin URL still works without a session.
 - Public Client Component props contain no admin/edit tokens.
 - A personal URL imports rights on a fresh browser and returns to the roster.
 - Clearing local storage removes own-visit controls; retained personal URL restores them.
@@ -92,7 +101,7 @@ Until automated tests exist, run at least these scenarios for relevant changes:
 - Confirm calendar touch targets and dialog scrolling at small heights.
 - Confirm selects render above dialogs.
 - Test copy/share on HTTPS and plain-HTTP LAN development.
-- If changing the uncommitted landing redesign, check the three absolutely positioned phone mocks on narrow screens for overlap/clipping.
+- If changing the landing page, check its decorative and phone-preview elements on narrow screens for overlap/clipping.
 
 ## Highest-value automated tests to add
 

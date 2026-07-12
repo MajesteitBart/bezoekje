@@ -11,7 +11,7 @@ Use this page to find the smallest authoritative surface for a change.
 
 ## Entrypoints and routes
 
-- `app/page.tsx` — creation form and landing page. The working tree currently has a large uncommitted marketing redesign.
+- `app/page.tsx` — creation form and polished landing page.
 - `app/r/[token]/page.tsx` — public roster loader.
 - `app/r/[token]/admin/[adminToken]/page.tsx` — admin capability validation and loader.
 - `app/r/[token]/v/[visitId]/[editToken]/page.tsx` — personal-link validation/import.
