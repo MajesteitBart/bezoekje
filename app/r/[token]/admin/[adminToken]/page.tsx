@@ -7,6 +7,8 @@ import {
   getBlockedInRange,
   getRosterAdminEmails,
   getRosterByPublicToken,
+  getTaskTypes,
+  getTasksInRange,
   getVisitsInRange,
   toRosterDTO,
 } from "@/lib/data";
@@ -28,12 +30,15 @@ export default async function RosterAdminPage({
   const { welkom } = await searchParams;
   const from = todayISO();
   const to = addDaysISO(from, roster.daysAhead);
-  const [visits, blocked, session, linkedEmails] = await Promise.all([
-    getVisitsInRange(roster.id, from, to),
-    getBlockedInRange(roster.id, from, to),
-    auth.api.getSession({ headers: await headers() }),
-    getRosterAdminEmails(roster.id),
-  ]);
+  const [visits, blocked, tasks, taskTypes, session, linkedEmails] =
+    await Promise.all([
+      getVisitsInRange(roster.id, from, to),
+      getBlockedInRange(roster.id, from, to),
+      getTasksInRange(roster.id, from, to),
+      getTaskTypes(roster.id),
+      auth.api.getSession({ headers: await headers() }),
+      getRosterAdminEmails(roster.id),
+    ]);
   const account = {
     sessionEmail: session?.user.email ?? null,
     linkedEmails,
@@ -45,6 +50,8 @@ export default async function RosterAdminPage({
       roster={toRosterDTO(roster)}
       visits={visits}
       blocked={blocked}
+      tasks={tasks}
+      taskTypes={taskTypes}
       adminToken={adminToken}
       justCreated={welkom === "1"}
       account={account}

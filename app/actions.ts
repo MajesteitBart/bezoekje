@@ -12,8 +12,9 @@ import {
 } from "@/lib/data";
 import { addDaysISO, isValidISODate, nowMinutes, todayISO } from "@/lib/dates";
 import { db, dbReady } from "@/lib/db";
-import { blockedTimes, rosters, visits } from "@/lib/db/schema";
+import { blockedTimes, rosters, taskTypes, tasks, visits } from "@/lib/db/schema";
 import { capacityLeft, overlaps } from "@/lib/slots";
+import { MAX_CUSTOM_TASK_TYPES } from "@/lib/task-types";
 import { newId, newToken } from "@/lib/tokens";
 import { NOTE_LEVELS, type NoteLevel } from "@/lib/types";
 
@@ -301,6 +302,247 @@ export async function addBlockedTimeAction(
     label: cleanText(input.label, 60),
     createdAt: Date.now(),
   });
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+// ---- Care tasks -----------------------------------------------------------
+// Tasks are created by the admin and claimed by anyone with the public link.
+// They are deliberately orthogonal to visit capacity and blocked times: driving
+// someone to the hospital during a rest hour is normal.
+
+function isValidTimePoint(min: unknown): min is number {
+  return (
+    typeof min === "number" &&
+    Number.isInteger(min) &&
+    min % 5 === 0 &&
+    min >= 0 &&
+    min < 24 * 60
+  );
+}
+
+function validateTaskDate(roster: RosterRow, date: string): Err | null {
+  if (!isValidISODate(date)) return err("Ongeldige datum.");
+  const today = todayISO();
+  if (date < today) return err("Deze datum is al voorbij.");
+  if (date > addDaysISO(today, roster.daysAhead))
+    return err("Deze datum ligt te ver vooruit.");
+  return null;
+}
+
+type TaskAuth = {
+  publicToken: string;
+  taskId: string;
+  /** The claim's editToken, or the roster adminToken. */
+  token: string;
+};
+
+async function getAuthorizedTask({ publicToken, taskId, token }: TaskAuth) {
+  const roster = await getRosterByPublicToken(publicToken);
+  if (!roster) return null;
+  await dbReady();
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.rosterId, roster.id)))
+    .limit(1);
+  const task = rows[0];
+  if (!task) return null;
+  // A released task has editToken NULL; only the admin may touch it then.
+  const isOwner = task.editToken !== null && task.editToken === token;
+  if (!isOwner && roster.adminToken !== token) return null;
+  return { roster, task };
+}
+
+export async function createTaskAction(input: {
+  publicToken: string;
+  adminToken: string;
+  date: string;
+  label: string;
+  needsTime: boolean;
+  startMin?: number | null;
+  note?: string | null;
+}): Promise<Err | Ok> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+
+  const label = cleanText(input.label, 40);
+  if (!label) return err("Geef de taak een naam.");
+  const dateError = validateTaskDate(roster, input.date);
+  if (dateError) return dateError;
+  if (input.needsTime && !isValidTimePoint(input.startMin))
+    return err("Kies een tijdstip voor deze taak.");
+
+  const now = Date.now();
+  await db.insert(tasks).values({
+    id: newId(),
+    rosterId: roster.id,
+    date: input.date,
+    label,
+    needsTime: input.needsTime === true,
+    startMin: input.needsTime ? (input.startMin as number) : null,
+    note: cleanText(input.note, 300),
+    createdAt: now,
+    updatedAt: now,
+  });
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+export async function deleteTaskAction(input: {
+  publicToken: string;
+  adminToken: string;
+  taskId: string;
+}): Promise<Err | Ok> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+  await db
+    .delete(tasks)
+    .where(and(eq(tasks.id, input.taskId), eq(tasks.rosterId, roster.id)));
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+export async function claimTaskAction(input: {
+  publicToken: string;
+  taskId: string;
+  name: string;
+  note?: string | null;
+  startMin?: number | null;
+}): Promise<Err | Ok<{ taskId: string; editToken: string }>> {
+  const roster = await getRosterByPublicToken(input.publicToken);
+  if (!roster) return err("Rooster niet gevonden.");
+  await dbReady();
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, input.taskId), eq(tasks.rosterId, roster.id)))
+    .limit(1);
+  const task = rows[0];
+  if (!task) return err("Taak niet gevonden.");
+  if (task.claimedName)
+    return err("Deze taak is net al door iemand anders opgepakt.");
+
+  const name = cleanText(input.name, 50);
+  if (!name) return err("Vul je naam in.");
+
+  let startMin = task.startMin;
+  if (task.needsTime) {
+    if (input.startMin != null) {
+      if (!isValidTimePoint(input.startMin)) return err("Ongeldig tijdstip.");
+      startMin = input.startMin;
+    }
+    if (startMin == null) return err("Kies een tijdstip.");
+  }
+
+  const editToken = newToken();
+  await db
+    .update(tasks)
+    .set({
+      claimedName: name,
+      claimedNote: cleanText(input.note, 200),
+      startMin,
+      editToken,
+      updatedAt: Date.now(),
+    })
+    .where(eq(tasks.id, task.id));
+  revalidateRoster(roster);
+  return { ok: true, taskId: task.id, editToken };
+}
+
+export async function updateTaskClaimAction(
+  input: TaskAuth & {
+    name: string;
+    note?: string | null;
+    startMin?: number | null;
+  }
+): Promise<Err | Ok> {
+  const found = await getAuthorizedTask(input);
+  if (!found) return err("Taak niet gevonden of geen toegang.");
+  const { roster, task } = found;
+  if (!task.claimedName) return err("Deze taak is niet opgepakt.");
+
+  const name = cleanText(input.name, 50);
+  if (!name) return err("Vul je naam in.");
+
+  let startMin = task.startMin;
+  if (task.needsTime && input.startMin != null) {
+    if (!isValidTimePoint(input.startMin)) return err("Ongeldig tijdstip.");
+    startMin = input.startMin;
+  }
+
+  await db
+    .update(tasks)
+    .set({
+      claimedName: name,
+      claimedNote: cleanText(input.note, 200),
+      startMin,
+      updatedAt: Date.now(),
+    })
+    .where(eq(tasks.id, task.id));
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+export async function releaseTaskAction(input: TaskAuth): Promise<Err | Ok> {
+  const found = await getAuthorizedTask(input);
+  if (!found) return err("Taak niet gevonden of geen toegang.");
+  // Clearing editToken revokes the personal link of the released claim.
+  await db
+    .update(tasks)
+    .set({
+      claimedName: null,
+      claimedNote: null,
+      editToken: null,
+      updatedAt: Date.now(),
+    })
+    .where(eq(tasks.id, found.task.id));
+  revalidateRoster(found.roster);
+  return { ok: true };
+}
+
+export async function createTaskTypeAction(input: {
+  publicToken: string;
+  adminToken: string;
+  name: string;
+  needsTime: boolean;
+}): Promise<Err | Ok<{ id: string }>> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+  const name = cleanText(input.name, 40);
+  if (!name) return err("Geef het taaktype een naam.");
+
+  const existing = await db
+    .select({ id: taskTypes.id })
+    .from(taskTypes)
+    .where(eq(taskTypes.rosterId, roster.id));
+  if (existing.length >= MAX_CUSTOM_TASK_TYPES)
+    return err("Je hebt al het maximale aantal eigen taaktypes.");
+
+  const id = newId();
+  await db.insert(taskTypes).values({
+    id,
+    rosterId: roster.id,
+    name,
+    needsTime: input.needsTime === true,
+    createdAt: Date.now(),
+  });
+  revalidateRoster(roster);
+  return { ok: true, id };
+}
+
+export async function deleteTaskTypeAction(input: {
+  publicToken: string;
+  adminToken: string;
+  typeId: string;
+}): Promise<Err | Ok> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+  await db
+    .delete(taskTypes)
+    .where(
+      and(eq(taskTypes.id, input.typeId), eq(taskTypes.rosterId, roster.id))
+    );
   revalidateRoster(roster);
   return { ok: true };
 }

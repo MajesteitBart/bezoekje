@@ -1,7 +1,8 @@
-import type { BlockedDTO, RosterDTO, VisitDTO } from "@/lib/types";
+import type { BlockedDTO, RosterDTO, TaskDTO, VisitDTO } from "@/lib/types";
 
 export type DayItem =
   | { type: "visit"; visit: VisitDTO }
+  | { type: "task"; task: TaskDTO }
   | { type: "free"; startMin: number; endMin: number }
   | { type: "blocked"; blocked: BlockedDTO };
 
@@ -17,12 +18,14 @@ export function overlaps(
 const typeOrder: Record<DayItem["type"], number> = {
   blocked: 0,
   visit: 1,
-  free: 2,
+  task: 2,
+  free: 3,
 };
 
 function itemStart(item: DayItem): number {
   if (item.type === "visit") return item.visit.startMin;
   if (item.type === "blocked") return item.blocked.startMin;
+  if (item.type === "task") return item.task.startMin ?? 0;
   return item.startMin;
 }
 
@@ -30,11 +33,14 @@ function itemStart(item: DayItem): number {
  * Free slots follow the roster grid (slotMinutes) within visiting hours,
  * minus blocked ranges, minus slots already at maxConcurrent capacity.
  * `nowMin` hides slots that already started (pass only for today).
+ * Timed care tasks are interleaved for display but never affect free slots:
+ * tasks are orthogonal to visit capacity and blocked times.
  */
 export function buildDayItems({
   roster,
   visits,
   blocked,
+  tasks = [],
   nowMin,
 }: {
   roster: Pick<
@@ -43,11 +49,15 @@ export function buildDayItems({
   >;
   visits: VisitDTO[];
   blocked: BlockedDTO[];
+  tasks?: TaskDTO[];
   nowMin?: number | null;
 }): DayItem[] {
   const items: DayItem[] = [
     ...visits.map((visit) => ({ type: "visit" as const, visit })),
     ...blocked.map((b) => ({ type: "blocked" as const, blocked: b })),
+    ...tasks
+      .filter((t) => t.startMin != null)
+      .map((task) => ({ type: "task" as const, task })),
   ];
 
   const step = Math.max(15, roster.slotMinutes);

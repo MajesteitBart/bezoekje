@@ -4,6 +4,8 @@ import { RosterView } from "@/components/roster/roster-view";
 import {
   getBlockedInRange,
   getRosterByPublicToken,
+  getTaskTypes,
+  getTasksInRange,
   getVisitsInRange,
   toRosterDTO,
 } from "@/lib/data";
@@ -22,9 +24,11 @@ export default async function RosterPage({
 
   const from = todayISO();
   const to = addDaysISO(from, roster.daysAhead);
-  const [visits, blocked] = await Promise.all([
+  const [visits, blocked, tasks, taskTypes] = await Promise.all([
     getVisitsInRange(roster.id, from, to),
     getBlockedInRange(roster.id, from, to),
+    getTasksInRange(roster.id, from, to),
+    getTaskTypes(roster.id),
   ]);
 
   return (
@@ -32,6 +36,8 @@ export default async function RosterPage({
       roster={toRosterDTO(roster)}
       visits={visits}
       blocked={blocked}
+      tasks={tasks}
+      taskTypes={taskTypes}
       adminToken={null}
     />
   );

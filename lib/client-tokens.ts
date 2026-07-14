@@ -43,6 +43,55 @@ export function removeEditToken(publicToken: string, visitId: string): void {
   }
 }
 
+// Same idea for care tasks: taskId -> claim editToken, kept separate from the
+// visit tokens so the two capability kinds can never be mixed up.
+
+function taskStorageKey(publicToken: string): string {
+  return `tasks:${publicToken}:tokens`;
+}
+
+export function getTaskTokens(publicToken: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(taskStorageKey(publicToken));
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveTaskToken(
+  publicToken: string,
+  taskId: string,
+  editToken: string
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const tokens = getTaskTokens(publicToken);
+    tokens[taskId] = editToken;
+    window.localStorage.setItem(
+      taskStorageKey(publicToken),
+      JSON.stringify(tokens)
+    );
+  } catch {
+    // localStorage unavailable (private mode) — the personal link still works.
+  }
+}
+
+export function removeTaskToken(publicToken: string, taskId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const tokens = getTaskTokens(publicToken);
+    delete tokens[taskId];
+    window.localStorage.setItem(
+      taskStorageKey(publicToken),
+      JSON.stringify(tokens)
+    );
+  } catch {
+    // ignore
+  }
+}
+
 // navigator.clipboard is unavailable on insecure origins (plain http on a
 // non-localhost host — e.g. testing from a phone over the LAN). Fall back to a
 // temporary textarea + execCommand so copy still works there.

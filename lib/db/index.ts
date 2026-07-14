@@ -63,6 +63,29 @@ CREATE TABLE IF NOT EXISTS visits (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_visits_roster_date ON visits(roster_id, date);
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  roster_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  label TEXT NOT NULL,
+  needs_time INTEGER NOT NULL DEFAULT 0,
+  start_min INTEGER,
+  note TEXT,
+  claimed_name TEXT,
+  claimed_note TEXT,
+  edit_token TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_roster_date ON tasks(roster_id, date);
+CREATE TABLE IF NOT EXISTS task_types (
+  id TEXT PRIMARY KEY,
+  roster_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  needs_time INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_task_types_roster ON task_types(roster_id);
 CREATE TABLE IF NOT EXISTS blocked_times (
   id TEXT PRIMARY KEY,
   roster_id TEXT NOT NULL,

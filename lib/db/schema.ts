@@ -45,6 +45,35 @@ export const rosterAdmins = sqliteTable(
   (t) => [primaryKey({ columns: [t.rosterId, t.userId] })]
 );
 
+// Practical care tasks (cooking, transport, …) coordinated next to visits.
+// Label and needsTime are snapshotted from the chosen task type so deleting a
+// type never affects existing tasks. Claim fields are null while a task is
+// open; editToken is issued at claim time and cleared again on release.
+export const tasks = sqliteTable("tasks", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  date: text("date").notNull(),
+  label: text("label").notNull(),
+  needsTime: integer("needs_time", { mode: "boolean" }).notNull().default(false),
+  startMin: integer("start_min"),
+  note: text("note"),
+  claimedName: text("claimed_name"),
+  claimedNote: text("claimed_note"),
+  editToken: text("edit_token"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// Admin-defined task types offered next to the built-in defaults
+// (lib/task-types.ts). Per roster.
+export const taskTypes = sqliteTable("task_types", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  name: text("name").notNull(),
+  needsTime: integer("needs_time", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const blockedTimes = sqliteTable("blocked_times", {
   id: text("id").primaryKey(),
   rosterId: text("roster_id").notNull(),

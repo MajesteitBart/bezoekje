@@ -2,6 +2,7 @@
 
 import {
   BanIcon,
+  HandHeartIcon,
   MoonIcon,
   PencilIcon,
   PlusIcon,
@@ -10,30 +11,45 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteBlockedTimeAction } from "@/app/actions";
+import { deleteBlockedTimeAction, deleteTaskAction } from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BlockDialog } from "@/components/roster/block-dialog";
 import { BookDialog } from "@/components/roster/book-dialog";
+import { ClaimTaskDialog } from "@/components/roster/claim-task-dialog";
+import { EditTaskDialog } from "@/components/roster/edit-task-dialog";
 import { EditVisitDialog } from "@/components/roster/edit-visit-dialog";
+import { TaskDialog } from "@/components/roster/task-dialog";
 import { formatDayLong, formatMin, nowMinutes, todayISO } from "@/lib/dates";
 import { buildDayItems } from "@/lib/slots";
-import type { BlockedDTO, RosterDTO, VisitDTO } from "@/lib/types";
+import type {
+  BlockedDTO,
+  RosterDTO,
+  TaskDTO,
+  TaskTypeDTO,
+  VisitDTO,
+} from "@/lib/types";
 
 export function DayPanel({
   roster,
   dateISO,
   visits,
   blocked,
+  tasks,
+  taskTypes,
   myTokens,
+  myTaskTokens,
   adminToken,
 }: {
   roster: RosterDTO;
   dateISO: string;
   visits: VisitDTO[];
   blocked: BlockedDTO[];
+  tasks: TaskDTO[];
+  taskTypes: TaskTypeDTO[];
   myTokens: Record<string, string>;
+  myTaskTokens: Record<string, string>;
   adminToken: string | null;
 }) {
   const router = useRouter();
@@ -45,18 +61,27 @@ export function DayPanel({
   const [editVisit, setEditVisit] = useState<VisitDTO | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [taskAddOpen, setTaskAddOpen] = useState(false);
+  const [claimTask, setClaimTask] = useState<TaskDTO | null>(null);
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [editTask, setEditTask] = useState<TaskDTO | null>(null);
+  const [editTaskOpen, setEditTaskOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const isToday = dateISO === todayISO();
+  const dayTasks = tasks.filter((t) => t.startMin == null);
   const items = buildDayItems({
     roster,
     visits,
     blocked,
+    tasks,
     nowMin: isToday ? nowMinutes() : null,
   });
 
   const tokenFor = (visit: VisitDTO): string | null =>
     adminToken ?? myTokens[visit.id] ?? null;
+  const taskTokenFor = (task: TaskDTO): string | null =>
+    adminToken ?? myTaskTokens[task.id] ?? null;
 
   const removeBlocked = (b: BlockedDTO) => {
     if (!adminToken) return;
@@ -70,6 +95,88 @@ export function DayPanel({
     });
   };
 
+  const removeTask = (t: TaskDTO) => {
+    if (!adminToken) return;
+    startTransition(async () => {
+      await deleteTaskAction({
+        publicToken: roster.publicToken,
+        adminToken,
+        taskId: t.id,
+      });
+      router.refresh();
+    });
+  };
+
+  const renderTask = (task: TaskDTO) => (
+    <div
+      key={`t-${task.id}`}
+      className="flex items-center gap-3 rounded-md border border-primary/25 bg-primary/5 p-3"
+    >
+      {task.startMin != null ? (
+        <Badge variant="secondary" className="shrink-0 font-normal">
+          {formatMin(task.startMin)}
+        </Badge>
+      ) : (
+        <HandHeartIcon className="size-4 shrink-0 text-primary" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {task.label}
+          {task.claimedName ? (
+            <span className="font-normal text-muted-foreground">
+              {" "}
+              · {task.claimedName} doet dit
+            </span>
+          ) : null}
+        </p>
+        {task.note || task.claimedNote ? (
+          <p className="truncate text-sm text-muted-foreground">
+            {[task.note, task.claimedNote].filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
+      </div>
+      {task.claimedName ? (
+        taskTokenFor(task) ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Taak aanpassen"
+            onClick={() => {
+              setEditTask(task);
+              setEditTaskOpen(true);
+            }}
+          >
+            <PencilIcon />
+          </Button>
+        ) : null
+      ) : (
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-primary/40"
+            onClick={() => {
+              setClaimTask(task);
+              setClaimOpen(true);
+            }}
+          >
+            Ik doe dit
+          </Button>
+          {adminToken ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Taak verwijderen"
+              onClick={() => removeTask(task)}
+            >
+              <Trash2Icon />
+            </Button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -77,12 +184,31 @@ export function DayPanel({
           {formatDayLong(dateISO)}
         </h2>
         {adminToken ? (
-          <Button variant="ghost" size="sm" onClick={() => setBlockOpen(true)}>
-            <BanIcon data-icon="inline-start" />
-            Blokkeer tijd
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTaskAddOpen(true)}
+            >
+              <HandHeartIcon data-icon="inline-start" />
+              Taak
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setBlockOpen(true)}>
+              <BanIcon data-icon="inline-start" />
+              Blokkeer tijd
+            </Button>
+          </div>
         ) : null}
       </div>
+
+      {dayTasks.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase">
+            Voor deze dag
+          </p>
+          {dayTasks.map(renderTask)}
+        </div>
+      ) : null}
 
       {visits.length === 0 ? (
         <Alert>
@@ -136,6 +262,9 @@ export function DayPanel({
                 ) : null}
               </div>
             );
+          }
+          if (item.type === "task") {
+            return renderTask(item.task);
           }
           if (item.type === "blocked") {
             return (
@@ -207,6 +336,30 @@ export function DayPanel({
           onOpenChange={setBlockOpen}
         />
       ) : null}
+      {adminToken ? (
+        <TaskDialog
+          roster={roster}
+          adminToken={adminToken}
+          dateISO={dateISO}
+          customTypes={taskTypes}
+          open={taskAddOpen}
+          onOpenChange={setTaskAddOpen}
+        />
+      ) : null}
+      <ClaimTaskDialog
+        roster={roster}
+        task={claimTask}
+        open={claimOpen}
+        onOpenChange={setClaimOpen}
+      />
+      <EditTaskDialog
+        roster={roster}
+        task={editTask}
+        token={editTask ? taskTokenFor(editTask) : null}
+        isAdmin={adminToken !== null}
+        open={editTaskOpen}
+        onOpenChange={setEditTaskOpen}
+      />
     </div>
   );
 }
