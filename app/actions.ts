@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -12,7 +12,15 @@ import {
 } from "@/lib/data";
 import { addDaysISO, isValidISODate, nowMinutes, todayISO } from "@/lib/dates";
 import { db, dbReady } from "@/lib/db";
-import { blockedTimes, rosters, taskTypes, tasks, visits } from "@/lib/db/schema";
+import {
+  blockedTimes,
+  rosters,
+  taskSeries,
+  taskTypes,
+  tasks,
+  visits,
+} from "@/lib/db/schema";
+import { ensureRecurringTasks, isRepeatFreq } from "@/lib/recurrence";
 import { capacityLeft, overlaps } from "@/lib/slots";
 import { MAX_CUSTOM_TASK_TYPES } from "@/lib/task-types";
 import { newId, newToken } from "@/lib/tokens";
@@ -362,6 +370,8 @@ export async function createTaskAction(input: {
   needsTime: boolean;
   startMin?: number | null;
   note?: string | null;
+  /** "none" (default) creates a single task; otherwise a recurring series. */
+  repeat?: "none" | "daily" | "weekly";
 }): Promise<Err | Ok> {
   const roster = await requireAdmin(input.publicToken, input.adminToken);
   if (!roster) return err("Geen toegang.");
@@ -374,17 +384,77 @@ export async function createTaskAction(input: {
     return err("Kies een tijdstip voor deze taak.");
 
   const now = Date.now();
-  await db.insert(tasks).values({
-    id: newId(),
-    rosterId: roster.id,
-    date: input.date,
-    label,
-    needsTime: input.needsTime === true,
-    startMin: input.needsTime ? (input.startMin as number) : null,
-    note: cleanText(input.note, 300),
-    createdAt: now,
-    updatedAt: now,
-  });
+  const needsTime = input.needsTime === true;
+  const startMin = needsTime ? (input.startMin as number) : null;
+  const note = cleanText(input.note, 300);
+
+  if (isRepeatFreq(input.repeat)) {
+    await db.insert(taskSeries).values({
+      id: newId(),
+      rosterId: roster.id,
+      label,
+      needsTime,
+      startMin,
+      note,
+      freq: input.repeat,
+      anchorDate: input.date,
+      createdAt: now,
+    });
+    await ensureRecurringTasks(
+      roster.id,
+      input.date,
+      addDaysISO(todayISO(), roster.daysAhead)
+    );
+  } else {
+    await db.insert(tasks).values({
+      id: newId(),
+      rosterId: roster.id,
+      date: input.date,
+      label,
+      needsTime,
+      startMin,
+      note,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+export async function stopTaskSeriesAction(input: {
+  publicToken: string;
+  adminToken: string;
+  seriesId: string;
+}): Promise<Err | Ok> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+  await dbReady();
+  const rows = await db
+    .select({ id: taskSeries.id })
+    .from(taskSeries)
+    .where(
+      and(eq(taskSeries.id, input.seriesId), eq(taskSeries.rosterId, roster.id))
+    )
+    .limit(1);
+  if (!rows[0]) return err("Herhaling niet gevonden.");
+
+  // Unclaimed occurrences from today onward disappear; claimed ones stay as
+  // one-off tasks so nobody's commitment vanishes silently.
+  await db
+    .delete(tasks)
+    .where(
+      and(
+        eq(tasks.seriesId, input.seriesId),
+        gte(tasks.date, todayISO()),
+        isNull(tasks.claimedName)
+      )
+    );
+  await db
+    .update(tasks)
+    .set({ seriesId: null })
+    .where(eq(tasks.seriesId, input.seriesId));
+  await db.delete(taskSeries).where(eq(taskSeries.id, input.seriesId));
   revalidateRoster(roster);
   return { ok: true };
 }
@@ -396,9 +466,29 @@ export async function deleteTaskAction(input: {
 }): Promise<Err | Ok> {
   const roster = await requireAdmin(input.publicToken, input.adminToken);
   if (!roster) return err("Geen toegang.");
-  await db
-    .delete(tasks)
-    .where(and(eq(tasks.id, input.taskId), eq(tasks.rosterId, roster.id)));
+  const rows = await db
+    .select({ id: tasks.id, seriesId: tasks.seriesId })
+    .from(tasks)
+    .where(and(eq(tasks.id, input.taskId), eq(tasks.rosterId, roster.id)))
+    .limit(1);
+  const task = rows[0];
+  if (!task) return err("Taak niet gevonden.");
+  if (task.seriesId) {
+    // Tombstone a series occurrence: deleting the row would let the next
+    // materialization pass recreate it.
+    await db
+      .update(tasks)
+      .set({
+        cancelled: true,
+        claimedName: null,
+        claimedNote: null,
+        editToken: null,
+        updatedAt: Date.now(),
+      })
+      .where(eq(tasks.id, task.id));
+  } else {
+    await db.delete(tasks).where(eq(tasks.id, task.id));
+  }
   revalidateRoster(roster);
   return { ok: true };
 }
@@ -419,7 +509,7 @@ export async function claimTaskAction(input: {
     .where(and(eq(tasks.id, input.taskId), eq(tasks.rosterId, roster.id)))
     .limit(1);
   const task = rows[0];
-  if (!task) return err("Taak niet gevonden.");
+  if (!task || task.cancelled) return err("Taak niet gevonden.");
   if (task.claimedName)
     return err("Deze taak is net al door iemand anders opgepakt.");
 

@@ -20,6 +20,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TimeSelect } from "@/components/roster/time-select";
 import { formatDayLong } from "@/lib/dates";
@@ -36,6 +44,14 @@ type TypeChoice =
   | { kind: "default"; index: number }
   | { kind: "custom"; id: string }
   | { kind: "own" };
+
+type Repeat = "none" | "daily" | "weekly";
+
+const REPEAT_LABELS: Record<Repeat, string> = {
+  none: "Eén keer",
+  daily: "Elke dag",
+  weekly: "Elke week op deze dag",
+};
 
 export function TaskDialog({
   roster,
@@ -59,6 +75,7 @@ export function TaskDialog({
   const [saveOwnType, setSaveOwnType] = useState(false);
   const [startMin, setStartMin] = useState(17 * 60);
   const [note, setNote] = useState("");
+  const [repeat, setRepeat] = useState<Repeat>("none");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -70,6 +87,7 @@ export function TaskDialog({
       setSaveOwnType(false);
       setStartMin(17 * 60);
       setNote("");
+      setRepeat("none");
       setError(null);
     }
   }, [open]);
@@ -111,6 +129,7 @@ export function TaskDialog({
         needsTime: selected.needsTime,
         startMin: selected.needsTime ? startMin : null,
         note,
+        repeat,
       });
       if (!res.ok) {
         setError(res.error);
@@ -252,6 +271,29 @@ export function TaskDialog({
               />
             </div>
           ) : null}
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="task-repeat">Herhalen?</Label>
+            <Select
+              value={repeat}
+              onValueChange={(v) => setRepeat(v as Repeat)}
+            >
+              <SelectTrigger id="task-repeat" className="w-full">
+                <SelectValue>
+                  {(v) => REPEAT_LABELS[(v as Repeat) ?? "none"]}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {REPEAT_LABELS[r]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-note">Toelichting (niet verplicht)</Label>

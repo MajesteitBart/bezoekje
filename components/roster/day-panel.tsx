@@ -6,15 +6,28 @@ import {
   MoonIcon,
   PencilIcon,
   PlusIcon,
+  Repeat2Icon,
   Trash2Icon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { deleteBlockedTimeAction, deleteTaskAction } from "@/app/actions";
+import {
+  deleteBlockedTimeAction,
+  deleteTaskAction,
+  stopTaskSeriesAction,
+} from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BlockDialog } from "@/components/roster/block-dialog";
 import { BookDialog } from "@/components/roster/book-dialog";
 import { ClaimTaskDialog } from "@/components/roster/claim-task-dialog";
@@ -66,6 +79,10 @@ export function DayPanel({
   const [claimOpen, setClaimOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskDTO | null>(null);
   const [editTaskOpen, setEditTaskOpen] = useState(false);
+  const [seriesDeleteTask, setSeriesDeleteTask] = useState<TaskDTO | null>(
+    null
+  );
+  const [seriesDeleteOpen, setSeriesDeleteOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const isToday = dateISO === todayISO();
@@ -97,6 +114,12 @@ export function DayPanel({
 
   const removeTask = (t: TaskDTO) => {
     if (!adminToken) return;
+    // Recurring occurrence: let the admin choose day-only vs stop the series.
+    if (t.seriesId) {
+      setSeriesDeleteTask(t);
+      setSeriesDeleteOpen(true);
+      return;
+    }
     startTransition(async () => {
       await deleteTaskAction({
         publicToken: roster.publicToken,
@@ -104,6 +127,32 @@ export function DayPanel({
         taskId: t.id,
       });
       router.refresh();
+    });
+  };
+
+  const removeOccurrence = () => {
+    if (!adminToken || !seriesDeleteTask) return;
+    startTransition(async () => {
+      await deleteTaskAction({
+        publicToken: roster.publicToken,
+        adminToken,
+        taskId: seriesDeleteTask.id,
+      });
+      router.refresh();
+      setSeriesDeleteOpen(false);
+    });
+  };
+
+  const stopSeries = () => {
+    if (!adminToken || !seriesDeleteTask?.seriesId) return;
+    startTransition(async () => {
+      await stopTaskSeriesAction({
+        publicToken: roster.publicToken,
+        adminToken,
+        seriesId: seriesDeleteTask.seriesId as string,
+      });
+      router.refresh();
+      setSeriesDeleteOpen(false);
     });
   };
 
@@ -122,6 +171,12 @@ export function DayPanel({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">
           {task.label}
+          {task.seriesId ? (
+            <Repeat2Icon
+              aria-label="Herhalende taak"
+              className="ml-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
+            />
+          ) : null}
           {task.claimedName ? (
             <span className="font-normal text-muted-foreground">
               {" "}
@@ -360,6 +415,34 @@ export function DayPanel({
         open={editTaskOpen}
         onOpenChange={setEditTaskOpen}
       />
+      <Dialog open={seriesDeleteOpen} onOpenChange={setSeriesDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Herhalende taak verwijderen</DialogTitle>
+            <DialogDescription>
+              {seriesDeleteTask
+                ? `“${seriesDeleteTask.label}” komt vaker terug. Wat wil je verwijderen?`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between">
+            <Button variant="destructive" onClick={stopSeries}>
+              Stop de herhaling
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setSeriesDeleteOpen(false)}
+              >
+                Terug
+              </Button>
+              <Button variant="outline" onClick={removeOccurrence}>
+                Alleen deze dag
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

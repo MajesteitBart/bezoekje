@@ -74,10 +74,24 @@ CREATE TABLE IF NOT EXISTS tasks (
   claimed_name TEXT,
   claimed_note TEXT,
   edit_token TEXT,
+  series_id TEXT,
+  cancelled INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_roster_date ON tasks(roster_id, date);
+CREATE TABLE IF NOT EXISTS task_series (
+  id TEXT PRIMARY KEY,
+  roster_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  needs_time INTEGER NOT NULL DEFAULT 0,
+  start_min INTEGER,
+  note TEXT,
+  freq TEXT NOT NULL,
+  anchor_date TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_task_series_roster ON task_series(roster_id);
 CREATE TABLE IF NOT EXISTS task_types (
   id TEXT PRIMARY KEY,
   roster_id TEXT NOT NULL,
@@ -155,7 +169,24 @@ const COLUMN_MIGRATIONS: Array<{ table: string; column: string; ddl: string }> =
       column: "pinned_note_level",
       ddl: "ALTER TABLE rosters ADD COLUMN pinned_note_level TEXT NOT NULL DEFAULT 'warning'",
     },
+    {
+      table: "tasks",
+      column: "series_id",
+      ddl: "ALTER TABLE tasks ADD COLUMN series_id TEXT",
+    },
+    {
+      table: "tasks",
+      column: "cancelled",
+      ddl: "ALTER TABLE tasks ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0",
+    },
   ];
+
+// Runs after the column migrations because these statements reference columns
+// that may have just been added to a pre-existing table.
+const POST_MIGRATION_DDL = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_series_date
+  ON tasks(series_id, date) WHERE series_id IS NOT NULL;
+`;
 
 async function migrate(): Promise<void> {
   const client = getClient();
@@ -165,6 +196,7 @@ async function migrate(): Promise<void> {
     const exists = info.rows.some((r) => r.name === m.column);
     if (!exists) await client.execute(m.ddl);
   }
+  await client.executeMultiple(POST_MIGRATION_DDL);
 }
 
 export function dbReady(): Promise<void> {

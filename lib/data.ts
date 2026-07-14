@@ -123,6 +123,7 @@ export async function getTasksInRange(
     .where(
       and(
         eq(tasks.rosterId, rosterId),
+        eq(tasks.cancelled, false),
         gte(tasks.date, fromISO),
         lte(tasks.date, toISO)
       )
@@ -136,6 +137,7 @@ export async function getTasksInRange(
     note: t.note,
     claimedName: t.claimedName,
     claimedNote: t.claimedNote,
+    seriesId: t.seriesId,
   }));
 }
 

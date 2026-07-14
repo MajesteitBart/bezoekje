@@ -21,9 +21,10 @@ link) — a random 128-bit token over HTTPS, no login:
   roster.
 
 Besides visits, admins can add **care tasks** (cooking, transport, groceries,
-or custom types) to a day. Anyone with the visitor link can claim a task with
-just their name, adjust or release it later, and day view shows open tasks next
-to the visit slots.
+or custom types) to a day — once, daily, or weekly. Anyone with the visitor
+link can claim a task with just their name, adjust or release it later, and day
+view shows open tasks next to the visit slots. Recurring tasks keep appearing
+as the planning window rolls forward; each day is claimed separately.
 
 ## Stack
 
