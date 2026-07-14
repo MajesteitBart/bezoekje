@@ -536,6 +536,10 @@ export async function claimTaskAction(input: {
     .limit(1);
   const task = rows[0];
   if (!task || task.cancelled) return err("Taak niet gevonden.");
+  // A stale tab (open overnight, or after the horizon shrank) can still show
+  // this task; reject claims for dates outside the current window.
+  const dateError = validateTaskDate(roster, task.date);
+  if (dateError) return dateError;
   if (task.claimedName)
     return err("Deze taak is net al door iemand anders opgepakt.");
 
