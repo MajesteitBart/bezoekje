@@ -226,8 +226,8 @@ function ProductSection() {
           <div className="absolute -right-2 top-24 hidden w-44 rotate-3 lg:block">
             <PhoneMock mode="edit" />
           </div>
-          <Reveal delay={120} className="relative z-10 mx-auto max-w-4xl">
-            <RosterMock />
+          <Reveal delay={120} className="relative z-10 mx-auto max-w-3xl">
+            <DayZoomMock />
           </Reveal>
         </div>
       </div>
@@ -586,6 +586,126 @@ function RosterMock() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DayZoomMock() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#EFE6DA] bg-white text-left shadow-[0_2px_16px_rgba(90,62,40,0.06)]">
+      <div className="grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-[#EFE6DA] px-4">
+        <div className="flex gap-1.5">
+          <span className="size-2.5 rounded-full bg-[#F5B7A8]" />
+          <span className="size-2.5 rounded-full bg-[#F4DC9F]" />
+          <span className="size-2.5 rounded-full bg-[#BCDFBB]" />
+        </div>
+        <p className="font-mono text-xs text-[#8A8177]">bezoekje.app/r/x7Kq9mP2</p>
+        <span />
+      </div>
+
+      <div className="grid md:grid-cols-[1.15fr_0.85fr]">
+        <div className="border-b border-[#EFE6DA] p-6 md:border-b-0 md:border-r">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
+                Bij opa en oma
+              </p>
+              <h3 className="mt-1.5 font-serif text-[26px] tracking-[-0.01em] text-[#221D18]">
+                Donderdag 14 mei
+              </h3>
+            </div>
+            <AvatarStack count={3} small />
+          </div>
+
+          <div className="mt-6 space-y-2.5">
+            <DetailVisitRow
+              name="Anneke"
+              time="10:00 – 11:00"
+              note="Neemt de krant en verse soep mee"
+              avatarIndex={0}
+            />
+            <div className="flex items-center justify-between rounded-lg border-2 border-[#3B8547]/60 bg-[#E4F2E2] px-4 py-3">
+              <span className="font-mono text-xs text-[#3B8547]">11:00 – 12:00</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium text-[#3B8547]">
+                gekozen
+                <CheckIcon className="size-3.5" />
+              </span>
+            </div>
+            <BlockedSlot time="12:00 – 14:00" />
+            <DetailVisitRow
+              name="Tom en Els"
+              time="15:00 – 16:00"
+              note="Komen met de kleinkinderen"
+              avatarIndex={1}
+            />
+            <FreeSlot time="17:00 – 18:00" />
+          </div>
+        </div>
+
+        <div className="bg-[#FBF6EF] p-6">
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
+            Nieuw bezoekje
+          </p>
+          <h3 className="mt-1.5 font-serif text-xl tracking-[-0.01em] text-[#221D18]">
+            Zet je naam erbij
+          </h3>
+
+          <div className="mt-5 flex items-center justify-between rounded-lg bg-[#E4F2E2] px-4 py-3">
+            <span className="font-mono text-xs text-[#3B8547]">do 14 mei</span>
+            <span className="font-mono text-xs text-[#3B8547]">11:00 – 12:00</span>
+          </div>
+
+          <label className="mt-5 block font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
+            Je naam
+          </label>
+          <div className="mt-2 flex h-11 items-center rounded-md border border-[#E4593B] bg-white px-3.5 text-sm text-[#4A443D]">
+            Maaike
+            <span className="ml-px h-4 w-px animate-pulse bg-[#E4593B]" />
+          </div>
+
+          <label className="mt-4 block font-mono text-[11px] uppercase tracking-[0.08em] text-[#8A8177]">
+            Notitie (mag leeg)
+          </label>
+          <div className="mt-2 flex h-11 items-center rounded-md border border-[#EFE6DA] bg-white px-3.5 text-sm text-[#B5AB9E]">
+            Bijv. ik neem wat lekkers mee
+          </div>
+
+          <button className="mt-5 w-full rounded-md bg-[#E4593B] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#C74A2E] active:scale-[0.98]">
+            Plan het bezoekje
+          </button>
+          <p className="mt-3.5 flex items-start gap-2 text-xs leading-[1.6] text-[#8A8177]">
+            <ShieldIcon className="mt-0.5 size-3.5 shrink-0 text-[#3B8547]" />
+            Je krijgt een eigen linkje om het bezoekje later te wijzigen.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailVisitRow({
+  name,
+  time,
+  note,
+  avatarIndex,
+}: {
+  name: string;
+  time: string;
+  note: string;
+  avatarIndex: number;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-[#EFE6DA] bg-white px-4 py-3">
+      <div>
+        <p className="font-mono text-xs text-[#8A8177]">{time}</p>
+        <p className="mt-0.5 text-sm font-medium text-[#221D18]">{name}</p>
+        <p className="mt-1 text-xs leading-[1.5] text-[#8A8177]">{note}</p>
+      </div>
+      <span
+        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium ${avatarStyles[avatarIndex]}`}
+      >
+        {name[0]}
+      </span>
     </div>
   );
 }
