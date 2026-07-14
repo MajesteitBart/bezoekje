@@ -2,7 +2,12 @@ import { and, eq, gte, lte } from "drizzle-orm";
 
 import { addDaysISO } from "@/lib/dates";
 import { db, dbReady } from "@/lib/db";
-import { taskSeries, tasks } from "@/lib/db/schema";
+import {
+  blockedSeries,
+  blockedTimes,
+  taskSeries,
+  tasks,
+} from "@/lib/db/schema";
 import { newId } from "@/lib/tokens";
 import type { RepeatFreq } from "@/lib/types";
 
@@ -79,6 +84,64 @@ export async function ensureRecurringTasks(
       )
       .onConflictDoNothing();
   }
+}
+
+/** Same materialization for recurring blocked times (e.g. a daily nap). */
+export async function ensureRecurringBlocks(
+  rosterId: string,
+  fromISO: string,
+  toISO: string
+): Promise<void> {
+  await dbReady();
+  const series = await db
+    .select()
+    .from(blockedSeries)
+    .where(eq(blockedSeries.rosterId, rosterId));
+  if (series.length === 0) return;
+
+  for (const s of series) {
+    const wanted = seriesDatesInRange(s, fromISO, toISO);
+    if (wanted.length === 0) continue;
+    const existing = await db
+      .select({ date: blockedTimes.date })
+      .from(blockedTimes)
+      .where(
+        and(
+          eq(blockedTimes.seriesId, s.id),
+          gte(blockedTimes.date, fromISO),
+          lte(blockedTimes.date, toISO)
+        )
+      );
+    const have = new Set(existing.map((r) => r.date));
+    const missing = wanted.filter((d) => !have.has(d));
+    if (missing.length === 0) continue;
+    const now = Date.now();
+    await db
+      .insert(blockedTimes)
+      .values(
+        missing.map((date) => ({
+          id: newId(),
+          rosterId,
+          date,
+          startMin: s.startMin,
+          endMin: s.endMin,
+          label: s.label,
+          seriesId: s.id,
+          createdAt: now,
+        }))
+      )
+      .onConflictDoNothing();
+  }
+}
+
+/** Materialize all recurring tasks and blocked times for a roster page load. */
+export async function ensureRecurring(
+  rosterId: string,
+  fromISO: string,
+  toISO: string
+): Promise<void> {
+  await ensureRecurringTasks(rosterId, fromISO, toISO);
+  await ensureRecurringBlocks(rosterId, fromISO, toISO);
 }
 
 export function isRepeatFreq(value: unknown): value is RepeatFreq {

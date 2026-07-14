@@ -166,6 +166,7 @@ export async function getBlockedInRange(
     .where(
       and(
         eq(blockedTimes.rosterId, rosterId),
+        eq(blockedTimes.cancelled, false),
         gte(blockedTimes.date, fromISO),
         lte(blockedTimes.date, toISO)
       )
@@ -176,5 +177,6 @@ export async function getBlockedInRange(
     startMin: b.startMin,
     endMin: b.endMin,
     label: b.label,
+    seriesId: b.seriesId,
   }));
 }

@@ -15,9 +15,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TimeSelect } from "@/components/roster/time-select";
 import { formatDayLong } from "@/lib/dates";
 import type { RosterDTO } from "@/lib/types";
+
+type Repeat = "none" | "daily" | "weekly";
+
+const REPEAT_LABELS: Record<Repeat, string> = {
+  none: "Eén keer",
+  daily: "Elke dag",
+  weekly: "Elke week op deze dag",
+};
 
 export function BlockDialog({
   roster,
@@ -36,6 +52,7 @@ export function BlockDialog({
   const [label, setLabel] = useState("");
   const [startMin, setStartMin] = useState(roster.startMin);
   const [endMin, setEndMin] = useState(roster.startMin + roster.slotMinutes);
+  const [repeat, setRepeat] = useState<Repeat>("none");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -44,6 +61,7 @@ export function BlockDialog({
       setLabel("");
       setStartMin(roster.startMin);
       setEndMin(roster.startMin + roster.slotMinutes);
+      setRepeat("none");
       setError(null);
     }
   }, [open, roster.startMin, roster.slotMinutes]);
@@ -57,6 +75,7 @@ export function BlockDialog({
         startMin,
         endMin,
         label,
+        repeat,
       });
       if (!res.ok) {
         setError(res.error);
@@ -104,6 +123,28 @@ export function BlockDialog({
                 step={roster.slotMinutes}
               />
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="block-repeat">Herhalen?</Label>
+            <Select
+              value={repeat}
+              onValueChange={(v) => setRepeat(v as Repeat)}
+            >
+              <SelectTrigger id="block-repeat" className="w-full">
+                <SelectValue>
+                  {(v) => REPEAT_LABELS[(v as Repeat) ?? "none"]}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {REPEAT_LABELS[r]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="block-label">Reden (niet verplicht)</Label>

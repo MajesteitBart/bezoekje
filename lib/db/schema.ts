@@ -103,5 +103,23 @@ export const blockedTimes = sqliteTable("blocked_times", {
   startMin: integer("start_min").notNull(),
   endMin: integer("end_min").notNull(),
   label: text("label"),
+  // Recurrence works exactly like tasks: seriesId marks a materialized
+  // occurrence, cancelled tombstones a per-day deletion so materialization
+  // cannot resurrect it.
+  seriesId: text("series_id"),
+  cancelled: integer("cancelled", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+});
+
+// A recurring blocked-time rule (e.g. a daily nap); occurrences materialize
+// lazily into blocked_times within the rolling horizon.
+export const blockedSeries = sqliteTable("blocked_series", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  startMin: integer("start_min").notNull(),
+  endMin: integer("end_min").notNull(),
+  label: text("label"),
+  freq: text("freq").notNull(), // 'daily' | 'weekly'
+  anchorDate: text("anchor_date").notNull(),
   createdAt: integer("created_at").notNull(),
 });

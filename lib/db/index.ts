@@ -107,9 +107,22 @@ CREATE TABLE IF NOT EXISTS blocked_times (
   start_min INTEGER NOT NULL,
   end_min INTEGER NOT NULL,
   label TEXT,
+  series_id TEXT,
+  cancelled INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_blocked_roster_date ON blocked_times(roster_id, date);
+CREATE TABLE IF NOT EXISTS blocked_series (
+  id TEXT PRIMARY KEY,
+  roster_id TEXT NOT NULL,
+  start_min INTEGER NOT NULL,
+  end_min INTEGER NOT NULL,
+  label TEXT,
+  freq TEXT NOT NULL,
+  anchor_date TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_blocked_series_roster ON blocked_series(roster_id);
 CREATE TABLE IF NOT EXISTS user (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -179,6 +192,16 @@ const COLUMN_MIGRATIONS: Array<{ table: string; column: string; ddl: string }> =
       column: "cancelled",
       ddl: "ALTER TABLE tasks ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0",
     },
+    {
+      table: "blocked_times",
+      column: "series_id",
+      ddl: "ALTER TABLE blocked_times ADD COLUMN series_id TEXT",
+    },
+    {
+      table: "blocked_times",
+      column: "cancelled",
+      ddl: "ALTER TABLE blocked_times ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0",
+    },
   ];
 
 // Runs after the column migrations because these statements reference columns
@@ -186,6 +209,8 @@ const COLUMN_MIGRATIONS: Array<{ table: string; column: string; ddl: string }> =
 const POST_MIGRATION_DDL = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_series_date
   ON tasks(series_id, date) WHERE series_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_series_date
+  ON blocked_times(series_id, date) WHERE series_id IS NOT NULL;
 `;
 
 async function migrate(): Promise<void> {

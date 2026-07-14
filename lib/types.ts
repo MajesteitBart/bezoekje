@@ -54,4 +54,5 @@ export type BlockedDTO = {
   startMin: number;
   endMin: number;
   label: string | null;
+  seriesId: string | null;
 };

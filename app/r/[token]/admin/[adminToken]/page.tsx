@@ -13,7 +13,7 @@ import {
   toRosterDTO,
 } from "@/lib/data";
 import { addDaysISO, todayISO } from "@/lib/dates";
-import { ensureRecurringTasks } from "@/lib/recurrence";
+import { ensureRecurring } from "@/lib/recurrence";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ export default async function RosterAdminPage({
   const { welkom } = await searchParams;
   const from = todayISO();
   const to = addDaysISO(from, roster.daysAhead);
-  await ensureRecurringTasks(roster.id, from, to);
+  await ensureRecurring(roster.id, from, to);
   const [visits, blocked, tasks, taskTypes, session, linkedEmails] =
     await Promise.all([
       getVisitsInRange(roster.id, from, to),

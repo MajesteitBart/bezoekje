@@ -15,6 +15,7 @@ import { useState, useTransition } from "react";
 import {
   deleteBlockedTimeAction,
   deleteTaskAction,
+  stopBlockedSeriesAction,
   stopTaskSeriesAction,
 } from "@/app/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -79,9 +80,11 @@ export function DayPanel({
   const [claimOpen, setClaimOpen] = useState(false);
   const [editTask, setEditTask] = useState<TaskDTO | null>(null);
   const [editTaskOpen, setEditTaskOpen] = useState(false);
-  const [seriesDeleteTask, setSeriesDeleteTask] = useState<TaskDTO | null>(
-    null
-  );
+  const [seriesDelete, setSeriesDelete] = useState<
+    | { kind: "task"; label: string; id: string; seriesId: string }
+    | { kind: "blocked"; label: string; id: string; seriesId: string }
+    | null
+  >(null);
   const [seriesDeleteOpen, setSeriesDeleteOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -102,6 +105,17 @@ export function DayPanel({
 
   const removeBlocked = (b: BlockedDTO) => {
     if (!adminToken) return;
+    // Recurring occurrence: let the admin choose day-only vs stop the series.
+    if (b.seriesId) {
+      setSeriesDelete({
+        kind: "blocked",
+        label: b.label || "geen bezoek",
+        id: b.id,
+        seriesId: b.seriesId,
+      });
+      setSeriesDeleteOpen(true);
+      return;
+    }
     startTransition(async () => {
       await deleteBlockedTimeAction({
         publicToken: roster.publicToken,
@@ -114,9 +128,13 @@ export function DayPanel({
 
   const removeTask = (t: TaskDTO) => {
     if (!adminToken) return;
-    // Recurring occurrence: let the admin choose day-only vs stop the series.
     if (t.seriesId) {
-      setSeriesDeleteTask(t);
+      setSeriesDelete({
+        kind: "task",
+        label: t.label,
+        id: t.id,
+        seriesId: t.seriesId,
+      });
       setSeriesDeleteOpen(true);
       return;
     }
@@ -131,26 +149,42 @@ export function DayPanel({
   };
 
   const removeOccurrence = () => {
-    if (!adminToken || !seriesDeleteTask) return;
+    if (!adminToken || !seriesDelete) return;
     startTransition(async () => {
-      await deleteTaskAction({
-        publicToken: roster.publicToken,
-        adminToken,
-        taskId: seriesDeleteTask.id,
-      });
+      if (seriesDelete.kind === "task") {
+        await deleteTaskAction({
+          publicToken: roster.publicToken,
+          adminToken,
+          taskId: seriesDelete.id,
+        });
+      } else {
+        await deleteBlockedTimeAction({
+          publicToken: roster.publicToken,
+          adminToken,
+          blockedId: seriesDelete.id,
+        });
+      }
       router.refresh();
       setSeriesDeleteOpen(false);
     });
   };
 
   const stopSeries = () => {
-    if (!adminToken || !seriesDeleteTask?.seriesId) return;
+    if (!adminToken || !seriesDelete) return;
     startTransition(async () => {
-      await stopTaskSeriesAction({
-        publicToken: roster.publicToken,
-        adminToken,
-        seriesId: seriesDeleteTask.seriesId as string,
-      });
+      if (seriesDelete.kind === "task") {
+        await stopTaskSeriesAction({
+          publicToken: roster.publicToken,
+          adminToken,
+          seriesId: seriesDelete.seriesId,
+        });
+      } else {
+        await stopBlockedSeriesAction({
+          publicToken: roster.publicToken,
+          adminToken,
+          seriesId: seriesDelete.seriesId,
+        });
+      }
       router.refresh();
       setSeriesDeleteOpen(false);
     });
@@ -332,6 +366,12 @@ export function DayPanel({
                   {formatMin(item.blocked.startMin)}–
                   {formatMin(item.blocked.endMin)} ·{" "}
                   {item.blocked.label || "geen bezoek"}
+                  {item.blocked.seriesId ? (
+                    <Repeat2Icon
+                      aria-label="Herhalende blokkade"
+                      className="ml-1.5 inline size-3.5 align-[-2px]"
+                    />
+                  ) : null}
                 </p>
                 {adminToken ? (
                   <Button
@@ -418,10 +458,14 @@ export function DayPanel({
       <Dialog open={seriesDeleteOpen} onOpenChange={setSeriesDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Herhalende taak verwijderen</DialogTitle>
+            <DialogTitle>
+              {seriesDelete?.kind === "blocked"
+                ? "Herhalende blokkade verwijderen"
+                : "Herhalende taak verwijderen"}
+            </DialogTitle>
             <DialogDescription>
-              {seriesDeleteTask
-                ? `“${seriesDeleteTask.label}” komt vaker terug. Wat wil je verwijderen?`
+              {seriesDelete
+                ? `“${seriesDelete.label}” komt vaker terug. Wat wil je verwijderen?`
                 : null}
             </DialogDescription>
           </DialogHeader>

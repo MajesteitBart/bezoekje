@@ -13,6 +13,7 @@ import {
 import { addDaysISO, isValidISODate, nowMinutes, todayISO } from "@/lib/dates";
 import { db, dbReady } from "@/lib/db";
 import {
+  blockedSeries,
   blockedTimes,
   rosters,
   taskSeries,
@@ -20,7 +21,11 @@ import {
   tasks,
   visits,
 } from "@/lib/db/schema";
-import { ensureRecurringTasks, isRepeatFreq } from "@/lib/recurrence";
+import {
+  ensureRecurringBlocks,
+  ensureRecurringTasks,
+  isRepeatFreq,
+} from "@/lib/recurrence";
 import { capacityLeft, overlaps } from "@/lib/slots";
 import { MAX_CUSTOM_TASK_TYPES } from "@/lib/task-types";
 import { newId, newToken } from "@/lib/tokens";
@@ -289,6 +294,8 @@ type BlockedInput = {
   startMin: number;
   endMin: number;
   label?: string | null;
+  /** "none" (default) blocks a single day; otherwise a recurring series. */
+  repeat?: "none" | "daily" | "weekly";
 };
 
 export async function addBlockedTimeAction(
@@ -301,15 +308,34 @@ export async function addBlockedTimeAction(
   if (!isValidTimeRange(input.startMin, input.endMin))
     return err("Ongeldig tijdstip.");
 
-  await db.insert(blockedTimes).values({
-    id: newId(),
-    rosterId: roster.id,
-    date: input.date,
-    startMin: input.startMin,
-    endMin: input.endMin,
-    label: cleanText(input.label, 60),
-    createdAt: Date.now(),
-  });
+  const label = cleanText(input.label, 60);
+  if (isRepeatFreq(input.repeat)) {
+    await db.insert(blockedSeries).values({
+      id: newId(),
+      rosterId: roster.id,
+      startMin: input.startMin,
+      endMin: input.endMin,
+      label,
+      freq: input.repeat,
+      anchorDate: input.date,
+      createdAt: Date.now(),
+    });
+    await ensureRecurringBlocks(
+      roster.id,
+      input.date,
+      addDaysISO(todayISO(), roster.daysAhead)
+    );
+  } else {
+    await db.insert(blockedTimes).values({
+      id: newId(),
+      rosterId: roster.id,
+      date: input.date,
+      startMin: input.startMin,
+      endMin: input.endMin,
+      label,
+      createdAt: Date.now(),
+    });
+  }
   revalidateRoster(roster);
   return { ok: true };
 }
@@ -644,14 +670,66 @@ export async function deleteBlockedTimeAction(input: {
 }): Promise<Err | Ok> {
   const roster = await requireAdmin(input.publicToken, input.adminToken);
   if (!roster) return err("Geen toegang.");
-  await db
-    .delete(blockedTimes)
+  const rows = await db
+    .select({ id: blockedTimes.id, seriesId: blockedTimes.seriesId })
+    .from(blockedTimes)
     .where(
       and(
         eq(blockedTimes.id, input.blockedId),
         eq(blockedTimes.rosterId, roster.id)
       )
+    )
+    .limit(1);
+  const blockedRow = rows[0];
+  if (!blockedRow) return err("Blokkade niet gevonden.");
+  if (blockedRow.seriesId) {
+    // Tombstone a series occurrence so materialization cannot recreate it.
+    await db
+      .update(blockedTimes)
+      .set({ cancelled: true })
+      .where(eq(blockedTimes.id, blockedRow.id));
+  } else {
+    await db.delete(blockedTimes).where(eq(blockedTimes.id, blockedRow.id));
+  }
+  revalidateRoster(roster);
+  return { ok: true };
+}
+
+export async function stopBlockedSeriesAction(input: {
+  publicToken: string;
+  adminToken: string;
+  seriesId: string;
+}): Promise<Err | Ok> {
+  const roster = await requireAdmin(input.publicToken, input.adminToken);
+  if (!roster) return err("Geen toegang.");
+  await dbReady();
+  const rows = await db
+    .select({ id: blockedSeries.id })
+    .from(blockedSeries)
+    .where(
+      and(
+        eq(blockedSeries.id, input.seriesId),
+        eq(blockedSeries.rosterId, roster.id)
+      )
+    )
+    .limit(1);
+  if (!rows[0]) return err("Herhaling niet gevonden.");
+
+  // Blocks have no claims, so everything from today onward simply disappears;
+  // past occurrences stay for history and are detached from the series.
+  await db
+    .delete(blockedTimes)
+    .where(
+      and(
+        eq(blockedTimes.seriesId, input.seriesId),
+        gte(blockedTimes.date, todayISO())
+      )
     );
+  await db
+    .update(blockedTimes)
+    .set({ seriesId: null })
+    .where(eq(blockedTimes.seriesId, input.seriesId));
+  await db.delete(blockedSeries).where(eq(blockedSeries.id, input.seriesId));
   revalidateRoster(roster);
   return { ok: true };
 }
