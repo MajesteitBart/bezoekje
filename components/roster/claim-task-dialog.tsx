@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddToCalendar } from "@/components/roster/add-to-calendar";
 import { TimeSelect } from "@/components/roster/time-select";
 import {
   copyText,
@@ -111,6 +112,22 @@ export function ClaimTaskDialog({
                 {copied ? <CheckIcon /> : <CopyIcon />}
               </Button>
             </div>
+            <AddToCalendar
+              filename="bezoekje-taak.ics"
+              event={{
+                uid: personalLink,
+                title: `${task.label} — ${roster.title}`,
+                dateISO: task.date,
+                startMin: task.needsTime ? startMin : null,
+                description: [
+                  task.note?.trim(),
+                  note.trim(),
+                  `Je persoonlijke link om deze taak aan te passen of terug te geven:\n${personalLink}`,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+              }}
+            />
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>Klaar</Button>
             </DialogFooter>
