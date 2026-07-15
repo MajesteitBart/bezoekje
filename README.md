@@ -14,8 +14,17 @@ link) — a random 128-bit token over HTTPS, no login:
 - **Personal visit link** `/r/<publicToken>/v/<visitId>/<editToken>` — saves an
   edit token in the browser so you can change or cancel your own visit. Also
   stored automatically in `localStorage` when you book on that device.
+- **Personal task link** `/r/<publicToken>/t/<taskId>/<editToken>` — same idea
+  for a claimed care task; releasing the task revokes the link.
 - **Admin link** `/r/<publicToken>/admin/<adminToken>` — edit any visit, pin a
-  note, block rest/treatment times, change settings.
+  note, block rest/treatment times, change settings, and put care tasks on the
+  roster.
+
+Besides visits, admins can add **care tasks** (cooking, transport, groceries,
+or custom types) to a day — once, daily, or weekly. Anyone with the visitor
+link can claim a task with just their name, adjust or release it later, and day
+view shows open tasks next to the visit slots. Recurring tasks keep appearing
+as the planning window rolls forward; each day is claimed separately.
 
 ## Stack
 

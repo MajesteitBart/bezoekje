@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddToCalendar } from "@/components/roster/add-to-calendar";
 import { TimeSelect } from "@/components/roster/time-select";
 import { copyText, getSavedName, saveEditToken, saveName } from "@/lib/client-tokens";
 import { formatDayLong, formatMin } from "@/lib/dates";
@@ -106,6 +107,22 @@ export function BookDialog({
                 {copied ? <CheckIcon /> : <CopyIcon />}
               </Button>
             </div>
+            <AddToCalendar
+              filename="bezoekje.ics"
+              event={{
+                uid: personalLink,
+                title: roster.title,
+                dateISO,
+                startMin: slot.startMin,
+                endMin,
+                description: [
+                  note.trim(),
+                  `Je persoonlijke link om je bezoek aan te passen of te annuleren:\n${personalLink}`,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+              }}
+            />
             <DialogFooter>
               <Button onClick={() => onOpenChange(false)}>Klaar</Button>
             </DialogFooter>

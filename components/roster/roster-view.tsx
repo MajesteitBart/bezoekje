@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { AdminBar } from "@/components/roster/admin-bar";
 import { DayPanel } from "@/components/roster/day-panel";
-import { getEditTokens } from "@/lib/client-tokens";
+import { getEditTokens, getTaskTokens } from "@/lib/client-tokens";
 import {
   addDaysISO,
   dateToISO,
@@ -26,6 +26,8 @@ import type {
   AccountInfoDTO,
   BlockedDTO,
   RosterDTO,
+  TaskDTO,
+  TaskTypeDTO,
   VisitDTO,
 } from "@/lib/types";
 
@@ -33,6 +35,8 @@ export function RosterView({
   roster,
   visits,
   blocked,
+  tasks,
+  taskTypes,
   adminToken,
   justCreated,
   account,
@@ -40,6 +44,8 @@ export function RosterView({
   roster: RosterDTO;
   visits: VisitDTO[];
   blocked: BlockedDTO[];
+  tasks: TaskDTO[];
+  taskTypes: TaskTypeDTO[];
   adminToken: string | null;
   justCreated?: boolean;
   account?: AccountInfoDTO;
@@ -52,9 +58,13 @@ export function RosterView({
   // Edit tokens live in localStorage; read them after mount so server and
   // client render the same initial HTML.
   const [myTokens, setMyTokens] = useState<Record<string, string>>({});
+  const [myTaskTokens, setMyTaskTokens] = useState<Record<string, string>>({});
   useEffect(() => {
     setMyTokens(getEditTokens(roster.publicToken));
   }, [roster.publicToken, visits]);
+  useEffect(() => {
+    setMyTaskTokens(getTaskTokens(roster.publicToken));
+  }, [roster.publicToken, tasks]);
 
   const dayVisits = useMemo(
     () =>
@@ -67,12 +77,26 @@ export function RosterView({
     () => blocked.filter((b) => b.date === selectedISO),
     [blocked, selectedISO]
   );
+  const dayTasks = useMemo(
+    () =>
+      tasks
+        .filter((t) => t.date === selectedISO)
+        .sort((a, b) => (a.startMin ?? -1) - (b.startMin ?? -1)),
+    [tasks, selectedISO]
+  );
   const bookedDates = useMemo(
     () =>
       Array.from(new Set(visits.map((v) => v.date))).map((d) =>
         isoToLocalDate(d)
       ),
     [visits]
+  );
+  const openTaskDates = useMemo(
+    () =>
+      Array.from(
+        new Set(tasks.filter((t) => !t.claimedName).map((t) => t.date))
+      ).map((d) => isoToLocalDate(d)),
+    [tasks]
   );
 
   return (
@@ -107,10 +131,14 @@ export function RosterView({
               { after: isoToLocalDate(horizonIso) },
             ]}
             showOutsideDays
-            modifiers={{ booked: bookedDates }}
+            modifiers={{ booked: bookedDates, openTasks: openTaskDates }}
             modifiersClassNames={{
               booked:
                 "after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:size-1.5 after:rounded-full after:bg-primary after:content-['']",
+              // Open (unclaimed) care task: amber dot top-right, so it can
+              // coexist with the booked-visit dot at the bottom.
+              openTasks:
+                "before:absolute before:top-1 before:right-1 before:size-1.5 before:rounded-full before:bg-amber-500 before:content-['']",
             }}
             className="w-full border-none shadow-none"
             classNames={{
@@ -137,7 +165,10 @@ export function RosterView({
             dateISO={selectedISO}
             visits={dayVisits}
             blocked={dayBlocked}
+            tasks={dayTasks}
+            taskTypes={taskTypes}
             myTokens={myTokens}
+            myTaskTokens={myTaskTokens}
             adminToken={adminToken}
           />
         </div>

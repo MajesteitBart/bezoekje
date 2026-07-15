@@ -1,5 +1,6 @@
 import { ChevronRightIcon, KeyRoundIcon, PlusIcon } from "lucide-react";
 import { headers } from "next/headers";
+import Link from "next/link";
 
 import { signOutAction } from "@/app/account-actions";
 import { AddRosterForm } from "@/components/account/add-roster-form";
@@ -69,7 +70,11 @@ export default async function AccountPage() {
       )}
 
       <div className="flex flex-col gap-2">
-        <Button variant="outline" nativeButton={false} render={<a href="/" />}>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href="/" />}
+        >
           <PlusIcon data-icon="inline-start" />
           Nieuw rooster maken
         </Button>

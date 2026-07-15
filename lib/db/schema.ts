@@ -45,6 +45,57 @@ export const rosterAdmins = sqliteTable(
   (t) => [primaryKey({ columns: [t.rosterId, t.userId] })]
 );
 
+// Practical care tasks (cooking, transport, …) coordinated next to visits.
+// Label and needsTime are snapshotted from the chosen task type so deleting a
+// type never affects existing tasks. Claim fields are null while a task is
+// open; editToken is issued at claim time and cleared again on release.
+export const tasks = sqliteTable("tasks", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  date: text("date").notNull(),
+  label: text("label").notNull(),
+  needsTime: integer("needs_time", { mode: "boolean" }).notNull().default(false),
+  startMin: integer("start_min"),
+  note: text("note"),
+  claimedName: text("claimed_name"),
+  claimedNote: text("claimed_note"),
+  editToken: text("edit_token"),
+  // Set when this row is an occurrence of a recurring series; a partial unique
+  // index on (series_id, date) makes concurrent materialization idempotent.
+  seriesId: text("series_id"),
+  // Tombstone for a deleted series occurrence: the row must stay to occupy its
+  // (series_id, date) slot, or materialization would resurrect the task.
+  cancelled: integer("cancelled", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// A recurring task rule. Occurrences are materialized lazily as `tasks` rows
+// within the roster's rolling horizon, so each day stays individually
+// claimable. The anchor date is the first occurrence; weekly series repeat on
+// the anchor's weekday.
+export const taskSeries = sqliteTable("task_series", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  label: text("label").notNull(),
+  needsTime: integer("needs_time", { mode: "boolean" }).notNull().default(false),
+  startMin: integer("start_min"),
+  note: text("note"),
+  freq: text("freq").notNull(), // 'daily' | 'weekly'
+  anchorDate: text("anchor_date").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Admin-defined task types offered next to the built-in defaults
+// (lib/task-types.ts). Per roster.
+export const taskTypes = sqliteTable("task_types", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  name: text("name").notNull(),
+  needsTime: integer("needs_time", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const blockedTimes = sqliteTable("blocked_times", {
   id: text("id").primaryKey(),
   rosterId: text("roster_id").notNull(),
@@ -52,5 +103,23 @@ export const blockedTimes = sqliteTable("blocked_times", {
   startMin: integer("start_min").notNull(),
   endMin: integer("end_min").notNull(),
   label: text("label"),
+  // Recurrence works exactly like tasks: seriesId marks a materialized
+  // occurrence, cancelled tombstones a per-day deletion so materialization
+  // cannot resurrect it.
+  seriesId: text("series_id"),
+  cancelled: integer("cancelled", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+});
+
+// A recurring blocked-time rule (e.g. a daily nap); occurrences materialize
+// lazily into blocked_times within the rolling horizon.
+export const blockedSeries = sqliteTable("blocked_series", {
+  id: text("id").primaryKey(),
+  rosterId: text("roster_id").notNull(),
+  startMin: integer("start_min").notNull(),
+  endMin: integer("end_min").notNull(),
+  label: text("label"),
+  freq: text("freq").notNull(), // 'daily' | 'weekly'
+  anchorDate: text("anchor_date").notNull(),
   createdAt: integer("created_at").notNull(),
 });

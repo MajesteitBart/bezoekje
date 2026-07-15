@@ -28,10 +28,31 @@ export type VisitDTO = {
   note: string | null;
 };
 
+export type RepeatFreq = "daily" | "weekly";
+
+export type TaskDTO = {
+  id: string;
+  date: string;
+  label: string;
+  needsTime: boolean;
+  startMin: number | null;
+  note: string | null;
+  claimedName: string | null;
+  claimedNote: string | null;
+  seriesId: string | null;
+};
+
+export type TaskTypeDTO = {
+  id: string;
+  name: string;
+  needsTime: boolean;
+};
+
 export type BlockedDTO = {
   id: string;
   date: string;
   startMin: number;
   endMin: number;
   label: string | null;
+  seriesId: string | null;
 };

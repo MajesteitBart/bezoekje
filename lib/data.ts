@@ -2,12 +2,21 @@ import { and, eq, gte, lte } from "drizzle-orm";
 
 import { db, dbReady } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
-import { blockedTimes, rosterAdmins, rosters, visits } from "@/lib/db/schema";
+import {
+  blockedTimes,
+  rosterAdmins,
+  rosters,
+  taskTypes,
+  tasks,
+  visits,
+} from "@/lib/db/schema";
 import {
   NOTE_LEVELS,
   type BlockedDTO,
   type NoteLevel,
   type RosterDTO,
+  type TaskDTO,
+  type TaskTypeDTO,
   type VisitDTO,
 } from "@/lib/types";
 
@@ -102,6 +111,49 @@ export async function getVisitsInRange(
   }));
 }
 
+export async function getTasksInRange(
+  rosterId: string,
+  fromISO: string,
+  toISO: string
+): Promise<TaskDTO[]> {
+  await dbReady();
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.rosterId, rosterId),
+        eq(tasks.cancelled, false),
+        gte(tasks.date, fromISO),
+        lte(tasks.date, toISO)
+      )
+    );
+  return rows.map((t) => ({
+    id: t.id,
+    date: t.date,
+    label: t.label,
+    needsTime: t.needsTime,
+    startMin: t.startMin,
+    note: t.note,
+    claimedName: t.claimedName,
+    claimedNote: t.claimedNote,
+    seriesId: t.seriesId,
+  }));
+}
+
+export async function getTaskTypes(rosterId: string): Promise<TaskTypeDTO[]> {
+  await dbReady();
+  const rows = await db
+    .select()
+    .from(taskTypes)
+    .where(eq(taskTypes.rosterId, rosterId));
+  return rows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    needsTime: t.needsTime,
+  }));
+}
+
 export async function getBlockedInRange(
   rosterId: string,
   fromISO: string,
@@ -114,6 +166,7 @@ export async function getBlockedInRange(
     .where(
       and(
         eq(blockedTimes.rosterId, rosterId),
+        eq(blockedTimes.cancelled, false),
         gte(blockedTimes.date, fromISO),
         lte(blockedTimes.date, toISO)
       )
@@ -124,5 +177,6 @@ export async function getBlockedInRange(
     startMin: b.startMin,
     endMin: b.endMin,
     label: b.label,
+    seriesId: b.seriesId,
   }));
 }
