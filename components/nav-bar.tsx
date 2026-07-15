@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 
 import { GithubIcon } from "@/components/github-icon";
 import { Logo } from "@/components/logo";
@@ -20,7 +21,7 @@ export async function NavBar() {
   return (
     <header className="sticky top-0 z-30 border-b border-[#EFE6DA] bg-[#FBF6EF]/90 backdrop-blur">
       <nav className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
-        <a
+        <Link
           href="/"
           aria-label="Naar de startpagina"
           className="flex items-center gap-2.5 transition-opacity hover:opacity-70"
@@ -29,7 +30,7 @@ export async function NavBar() {
           <span className="font-serif text-2xl font-semibold tracking-[-0.01em] text-[#221D18]">
             Bezoekje<span className="text-[#E4593B]">.</span>
           </span>
-        </a>
+        </Link>
         <div className="flex items-center gap-4">
           <a
             href="https://github.com/MajesteitBart/bezoekje"
@@ -40,12 +41,12 @@ export async function NavBar() {
           >
             <GithubIcon className="size-5" />
           </a>
-          <a
+          <Link
             href="/account"
             className="rounded-md border border-[#EFE6DA] bg-white px-3.5 py-1.5 text-sm font-medium text-[#4A443D] transition-colors hover:border-[#E4593B]/50 hover:text-[#E4593B]"
           >
             {session ? "Mijn account" : "Inloggen"}
-          </a>
+          </Link>
         </div>
       </nav>
     </header>
